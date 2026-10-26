@@ -63,7 +63,7 @@ fun GlassCard(
 fun Label(
     text: String,
     size: Number,
-    color: Color = Palette.TextPrimary,
+    color: Color = LocalInk.current.primary,
     weight: FontWeight = FontWeight.Normal,
     modifier: Modifier = Modifier,
 ) {

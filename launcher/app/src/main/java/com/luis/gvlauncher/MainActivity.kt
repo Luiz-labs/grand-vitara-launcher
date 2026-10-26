@@ -43,7 +43,10 @@ import com.luis.gvlauncher.ui.DESIGN_W
 import com.luis.gvlauncher.ui.HomeActions
 import com.luis.gvlauncher.ui.HomeScreen
 import com.luis.gvlauncher.ui.HomeState
+import com.luis.gvlauncher.ui.Ink
+import com.luis.gvlauncher.ui.LocalInk
 import com.luis.gvlauncher.ui.LocalUnit
+import com.luis.gvlauncher.ui.Palette
 import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
@@ -124,6 +127,15 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
+            // Tema claro/oscuro: se revisa cada minuto (el modo Automático cambia solo a las 6:00 y 18:00).
+            LaunchedEffect(profile.theme) {
+                while (true) {
+                    val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+                    Palette.light = profile.theme.isLight(hour)
+                    delay(60_000L - System.currentTimeMillis() % 60_000L)
+                }
+            }
+
             LaunchedEffect(cityIndex) {
                 val city = Config.CITIES.getOrNull(cityIndex)
                 while (true) {
@@ -134,7 +146,7 @@ class MainActivity : ComponentActivity() {
 
             BoxWithConstraints(Modifier.fillMaxSize()) {
                 val unit = minOf(maxWidth / DESIGN_W, maxHeight / DESIGN_H)
-                CompositionLocalProvider(LocalUnit provides unit) {
+                CompositionLocalProvider(LocalUnit provides unit, LocalInk provides Ink.surface()) {
                     AppBackground()
                     val apps = drawerApps
                     if (customizing) {

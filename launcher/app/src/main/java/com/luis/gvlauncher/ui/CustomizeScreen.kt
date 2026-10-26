@@ -46,6 +46,7 @@ import com.luis.gvlauncher.Config
 import com.luis.gvlauncher.data.CarModel
 import com.luis.gvlauncher.data.CarPaint
 import com.luis.gvlauncher.data.CarProfile
+import com.luis.gvlauncher.data.ThemeMode
 
 /**
  * Pantalla "Personalizar": nombre del conductor, modelo (3 / 5 puertas / foto propia) y color.
@@ -64,13 +65,13 @@ fun CustomizeScreen(
     Column(Modifier.fillMaxSize().padding(horizontal = 60.u, vertical = 36.u)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
-                Icons.Rounded.ArrowBack, "Volver", tint = Color.White,
+                Icons.Rounded.ArrowBack, "Volver", tint = LocalInk.current.primary,
                 modifier = Modifier.size(64.u).clip(CircleShape).clickable { focus.clearFocus(); onDone() }.padding(10.u),
             )
             Spacer(Modifier.width(20.u))
             Label("Personalizar", 40, weight = FontWeight.SemiBold)
             Spacer(Modifier.weight(1f))
-            PillButton(Icons.Rounded.Check, "Listo", Palette.Accent) { focus.clearFocus(); onDone() }
+            PillButton(Icons.Rounded.Check, "Listo", Palette.Accent, onColor = true) { focus.clearFocus(); onDone() }
         }
         Spacer(Modifier.height(28.u))
         Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(32.u)) {
@@ -78,19 +79,19 @@ fun CustomizeScreen(
             GlassCard(
                 Palette.HeroTop, Palette.HeroBottom, Palette.HeroBorder,
                 Modifier.weight(1f).fillMaxHeight(),
-            ) {
+            ) { OnColor {
                 Column(Modifier.fillMaxSize().padding(36.u)) {
                     Label("Hola, ${profile.driverName.ifBlank { Config.DRIVER_NAME }}", 48, weight = FontWeight.SemiBold)
-                    Label(Config.CAR_NAME, 26, color = Palette.TextSecondary)
+                    Label(Config.CAR_NAME, 26, color = LocalInk.current.secondary)
                     Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                         if (preview != null) {
                             Image(preview, null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize())
                         } else {
-                            Label("Preparando imagen…", 24, color = Palette.TextSecondary)
+                            Label("Preparando imagen…", 24, color = LocalInk.current.secondary)
                         }
                     }
                 }
-            }
+            } }
             // Opciones
             Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(14.u)) {
                 Section("Tu nombre")
@@ -109,8 +110,8 @@ fun CustomizeScreen(
                 if (profile.model == CarModel.FOTO_PROPIA) {
                     Section("Tu foto (PNG con fondo transparente se ve mejor)")
                     Row(horizontalArrangement = Arrangement.spacedBy(14.u)) {
-                        PillButton(Icons.Rounded.Image, "Elegir foto", Color(0x33FFFFFF), Modifier.weight(1f), onPickPhoto)
-                        PillButton(Icons.Rounded.Folder, "Usar Download/auto.png", Color(0x33FFFFFF), Modifier.weight(1.4f), onUseDownloadPhoto)
+                        PillButton(Icons.Rounded.Image, "Elegir foto", Palette.ChipBg, Modifier.weight(1f), onClick = onPickPhoto)
+                        PillButton(Icons.Rounded.Folder, "Usar Download/auto.png", Palette.ChipBg, Modifier.weight(1.4f), onClick = onUseDownloadPhoto)
                     }
                 } else {
                     Section("Color: ${profile.paint}")
@@ -126,6 +127,16 @@ fun CustomizeScreen(
                         }
                     }
                 }
+
+                Section("Tema de pantalla")
+                Row(horizontalArrangement = Arrangement.spacedBy(14.u)) {
+                    ThemeMode.entries.forEach { t ->
+                        Chip(t.label, selected = profile.theme == t, Modifier.weight(1f)) {
+                            focus.clearFocus()
+                            onChange(profile.copy(theme = t))
+                        }
+                    }
+                }
             }
         }
     }
@@ -134,7 +145,7 @@ fun CustomizeScreen(
 @Composable
 private fun Section(text: String) {
     Spacer(Modifier.height(6.u))
-    Label(text, 22, color = Palette.TextSecondary)
+    Label(text, 22, color = LocalInk.current.secondary)
 }
 
 @Composable
@@ -143,7 +154,7 @@ private fun NameField(value: String, focus: FocusManager, onValue: (String) -> U
         value = value,
         onValueChange = { onValue(it.take(18)) },
         singleLine = true,
-        textStyle = TextStyle(color = Color.White, fontSize = 30.us),
+        textStyle = TextStyle(color = LocalInk.current.primary, fontSize = 30.us),
         cursorBrush = SolidColor(Palette.Accent),
         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Done),
         keyboardActions = KeyboardActions(onDone = { focus.clearFocus() }),
@@ -153,12 +164,12 @@ private fun NameField(value: String, focus: FocusManager, onValue: (String) -> U
                     .fillMaxWidth()
                     .height(76.u)
                     .clip(RoundedCornerShape(18.u))
-                    .background(Color(0x22FFFFFF))
+                    .background(Palette.ChipBg)
                     .border(1.5.u, Color(0x553D8BFF), RoundedCornerShape(18.u))
                     .padding(horizontal = 24.u),
                 contentAlignment = Alignment.CenterStart,
             ) {
-                if (value.isEmpty()) Label("Escribe tu nombre", 30, color = Palette.TextSecondary)
+                if (value.isEmpty()) Label("Escribe tu nombre", 30, color = LocalInk.current.secondary)
                 inner()
             }
         },
@@ -171,11 +182,15 @@ private fun Chip(text: String, selected: Boolean, modifier: Modifier, onClick: (
         modifier
             .height(70.u)
             .clip(RoundedCornerShape(35.u))
-            .background(if (selected) Palette.Accent else Color(0x22FFFFFF))
+            .background(if (selected) Palette.Accent else Palette.ChipBg)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Label(text, 24, weight = if (selected) FontWeight.SemiBold else FontWeight.Normal)
+        Label(
+            text, 24,
+            color = if (selected) Color.White else LocalInk.current.primary,
+            weight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+        )
     }
 }
 
@@ -185,7 +200,7 @@ private fun Swatch(paint: CarPaint, selected: Boolean, onClick: () -> Unit) {
         Modifier
             .size(72.u)
             .clip(CircleShape)
-            .border(if (selected) 4.u else 1.5.u, if (selected) Color.White else Color(0x55FFFFFF), CircleShape)
+            .border(if (selected) 4.u else 1.5.u, if (selected) LocalInk.current.primary else LocalInk.current.secondary.copy(alpha = 0.5f), CircleShape)
             .padding(7.u)
             .clip(CircleShape)
             .background(Color(paint.swatch))
@@ -206,8 +221,10 @@ private fun PillButton(
     text: String,
     bg: Color,
     modifier: Modifier = Modifier,
+    onColor: Boolean = false,
     onClick: () -> Unit,
 ) {
+    val fg = if (onColor) Color.White else LocalInk.current.primary
     Row(
         modifier
             .height(70.u)
@@ -218,8 +235,8 @@ private fun PillButton(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,
     ) {
-        Icon(icon, null, tint = Color.White, modifier = Modifier.size(32.u))
+        Icon(icon, null, tint = fg, modifier = Modifier.size(32.u))
         Spacer(Modifier.width(10.u))
-        Label(text, 22)
+        Label(text, 22, color = fg)
     }
 }

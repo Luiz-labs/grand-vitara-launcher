@@ -209,7 +209,7 @@ private fun RailItem(icon: ImageVector, selected: Boolean = false, onClick: () -
         }
         Icon(
             icon, null,
-            tint = if (selected) Palette.Accent else Color(0xFFDDE6FF),
+            tint = if (selected) Palette.Accent else LocalInk.current.secondary,
             modifier = Modifier.size(48.u),
         )
     }
@@ -233,26 +233,26 @@ private fun TopBar(now: Date, state: HomeState) {
         ) {
             Label(time, 52, weight = FontWeight.Medium)
             Spacer(Modifier.width(28.u))
-            Label(date, 26, color = Color(0xFFD5DEF5))
+            Label(date, 26, color = LocalInk.current.secondary)
             Spacer(Modifier.width(42.u))
             VDivider()
             Spacer(Modifier.weight(1f))
-            Icon(Icons.Rounded.LocationOn, null, tint = Color.White, modifier = Modifier.size(38.u))
+            Icon(Icons.Rounded.LocationOn, null, tint = LocalInk.current.primary, modifier = Modifier.size(38.u))
             Spacer(Modifier.width(14.u))
             Icon(
                 if (state.bluetoothOn) Icons.Rounded.Bluetooth else Icons.Rounded.BluetoothDisabled, null,
-                tint = if (state.bluetoothOn) Color.White else Palette.TextSecondary,
+                tint = if (state.bluetoothOn) LocalInk.current.primary else LocalInk.current.secondary,
                 modifier = Modifier.size(38.u),
             )
             Spacer(Modifier.width(14.u))
-            Icon(Icons.Rounded.Phone, null, tint = Color.White, modifier = Modifier.size(38.u))
+            Icon(Icons.Rounded.Phone, null, tint = LocalInk.current.primary, modifier = Modifier.size(38.u))
             Spacer(Modifier.width(34.u))
             VDivider()
             Spacer(Modifier.width(34.u))
-            Icon(Icons.Rounded.DirectionsCar, null, tint = Color.White, modifier = Modifier.size(50.u))
+            Icon(Icons.Rounded.DirectionsCar, null, tint = LocalInk.current.primary, modifier = Modifier.size(50.u))
             Spacer(Modifier.width(16.u))
             Column {
-                Label("Exterior", 20, color = Color(0xFFD5DEF5))
+                Label("Exterior", 20, color = LocalInk.current.secondary)
                 Label(state.weather?.let { "${it.temp}°C" } ?: "--°C", 28)
             }
         }
@@ -273,18 +273,18 @@ private fun HeroCard(now: Date, state: HomeState, actions: HomeActions, modifier
         in 12..18 -> "Buenas tardes"
         else -> "Buenas noches"
     }
-    GlassCard(Palette.HeroTop, Palette.HeroBottom, Palette.HeroBorder, modifier) {
+    GlassCard(Palette.HeroTop, Palette.HeroBottom, Palette.HeroBorder, modifier) { OnColor {
         Column(Modifier.fillMaxSize().padding(start = 40.u, end = 28.u, top = 36.u, bottom = 24.u)) {
             Row(verticalAlignment = Alignment.Top) {
                 Column(Modifier.weight(1f)) {
                     Label("Hola, ${state.driverName}", 48, weight = FontWeight.SemiBold)
                     Spacer(Modifier.height(6.u))
-                    Label("$greeting · ${Config.CAR_NAME}", 26, color = Palette.TextSecondary)
+                    Label("$greeting · ${Config.CAR_NAME}", 26, color = LocalInk.current.secondary)
                 }
                 // Toca el ícono del auto para abrir Personalizar (nombre, modelo y color).
                 Box(Modifier.clip(CircleShape).clickable(onClick = actions.openCustomize)) {
                     CircleOutline(88.u, Color(0x88B8CCFF)) {
-                        Icon(Icons.Rounded.Tune, "Personalizar", tint = Color.White, modifier = Modifier.size(44.u))
+                        Icon(Icons.Rounded.Tune, "Personalizar", tint = LocalInk.current.primary, modifier = Modifier.size(44.u))
                     }
                 }
             }
@@ -304,7 +304,7 @@ private fun HeroCard(now: Date, state: HomeState, actions: HomeActions, modifier
             WeatherBlock(state, actions.cycleCity)
             WeatherStats(state.weather)
         }
-    }
+    } }
 }
 
 @Composable
@@ -322,9 +322,9 @@ private fun WeatherBlock(state: HomeState, onCycleCity: () -> Unit) {
             .padding(start = 6.u, top = 4.u, bottom = 4.u),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Rounded.LocationOn, null, tint = Palette.TextSecondary, modifier = Modifier.size(24.u))
+            Icon(Icons.Rounded.LocationOn, null, tint = LocalInk.current.secondary, modifier = Modifier.size(24.u))
             Spacer(Modifier.width(6.u))
-            Label(place, 21, color = Palette.TextSecondary)
+            Label(place, 21, color = LocalInk.current.secondary)
             Spacer(Modifier.width(10.u))
             Icon(Icons.Rounded.SwapHoriz, null, tint = Color(0x88A9BCE8), modifier = Modifier.size(24.u))
         }
@@ -342,7 +342,7 @@ private fun WeatherRow(weather: Weather?) {
         Spacer(Modifier.width(28.u))
         Column {
             Label(weather?.description ?: "Sin datos de clima", 26)
-            Label(weather?.let { "Sensación ${it.feelsLike}°" } ?: "Conecta a internet", 22, color = Palette.TextSecondary)
+            Label(weather?.let { "Sensación ${it.feelsLike}°" } ?: "Conecta a internet", 22, color = LocalInk.current.secondary)
         }
     }
 }
@@ -373,7 +373,7 @@ private fun WeatherStats(weather: Weather?) {
 @Composable
 private fun Stat(icon: ImageVector, value: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, null, tint = Color.White, modifier = Modifier.size(28.u))
+        Icon(icon, null, tint = LocalInk.current.primary, modifier = Modifier.size(28.u))
         Spacer(Modifier.width(8.u))
         Label(value, 26)
     }
@@ -387,14 +387,15 @@ private fun PillDivider() {
 /** Material has no "rain cloud", so drizzle/rain draws a cloud with falling streaks. */
 @Composable
 private fun WeatherIcon(code: Int?, isDay: Boolean, size: Dp) {
+    val ink = LocalInk.current.primary
     val rainy = code != null && (code in 51..67 || code in 80..82)
     if (!rainy) {
-        Icon(weatherIcon(code, isDay), null, tint = Color.White, modifier = Modifier.size(size))
+        Icon(weatherIcon(code, isDay), null, tint = LocalInk.current.primary, modifier = Modifier.size(size))
         return
     }
     Box(Modifier.size(size)) {
         Icon(
-            Icons.Rounded.Cloud, null, tint = Color.White,
+            Icons.Rounded.Cloud, null, tint = LocalInk.current.primary,
             modifier = Modifier.size(size * 0.92f).align(Alignment.TopCenter).offset(y = -size * 0.12f),
         )
         Canvas(Modifier.fillMaxSize()) {
@@ -402,7 +403,7 @@ private fun WeatherIcon(code: Int?, isDay: Boolean, size: Dp) {
             val h = this.size.height
             for (x in listOf(0.30f, 0.50f, 0.70f)) {
                 drawLine(
-                    Color.White,
+                    ink,
                     Offset(w * x, h * 0.70f), Offset(w * (x - 0.06f), h * 0.92f),
                     strokeWidth = w * 0.07f, cap = StrokeCap.Round,
                 )
@@ -439,10 +440,10 @@ private fun WazeCard(state: HomeState, actions: HomeActions, modifier: Modifier)
                 Column(Modifier.weight(1f)) {
                     Label("Waze", 30, weight = FontWeight.SemiBold)
                     Spacer(Modifier.height(2.u))
-                    Label("¿A dónde vamos?", 21, color = Palette.TextSecondary)
+                    Label("¿A dónde vamos?", 21, color = LocalInk.current.secondary)
                 }
                 val speed = state.fix?.speedKmh
-                if (speed != null) {
+                if (speed != null) OnColor {
                     Row(
                         Modifier
                             .clip(RoundedCornerShape(16.u))
@@ -452,7 +453,7 @@ private fun WazeCard(state: HomeState, actions: HomeActions, modifier: Modifier)
                     ) {
                         Label("$speed", 34, weight = FontWeight.SemiBold)
                         Spacer(Modifier.width(6.u))
-                        Label("km/h", 18, color = Palette.TextSecondary, modifier = Modifier.padding(bottom = 4.u))
+                        Label("km/h", 18, color = LocalInk.current.secondary, modifier = Modifier.padding(bottom = 4.u))
                     }
                 }
             }
@@ -471,13 +472,13 @@ private fun WazeChip(icon: ImageVector, text: String, onClick: () -> Unit, modif
         modifier
             .height(70.u)
             .clip(RoundedCornerShape(35.u))
-            .background(Color(0x33FFFFFF))
+            .background(Palette.ChipBg)
             .clickable(onClick = onClick)
             .padding(horizontal = 22.u),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,
     ) {
-        Icon(icon, null, tint = Color.White, modifier = Modifier.size(32.u))
+        Icon(icon, null, tint = LocalInk.current.primary, modifier = Modifier.size(32.u))
         Spacer(Modifier.width(10.u))
         Label(text, 24)
     }
@@ -495,7 +496,7 @@ private fun MediaCard(np: NowPlaying?, actions: HomeActions, modifier: Modifier)
     GlassCard(
         Palette.MediaTop, Palette.MediaBottom, Palette.MediaBorder, modifier,
         onClick = actions.openMusic,
-    ) {
+    ) { OnColor {
         Column(Modifier.fillMaxSize().padding(start = 36.u, end = 36.u, top = 34.u, bottom = 18.u)) {
             Row(Modifier.weight(1f)) {
                 Box(
@@ -524,7 +525,7 @@ private fun MediaCard(np: NowPlaying?, actions: HomeActions, modifier: Modifier)
                     val bt = np.sourcePackage in Config.BLUETOOTH_MEDIA_SOURCES
                     Icon(
                         if (bt) Icons.Rounded.Bluetooth else Icons.Rounded.MusicNote, null,
-                        tint = Color.White, modifier = Modifier.size(36.u),
+                        tint = LocalInk.current.primary, modifier = Modifier.size(36.u),
                     )
                 }
             }
@@ -544,7 +545,7 @@ private fun MediaCard(np: NowPlaying?, actions: HomeActions, modifier: Modifier)
                 RoundButton(Icons.Rounded.SkipNext, 72, Color(0x33FFFFFF), Color.White, actions.next)
             }
         }
-    }
+    } }
 }
 
 @Composable
@@ -609,6 +610,6 @@ private fun RowScope.TileText(title: String, subtitle: String) {
     Column(Modifier.weight(1f)) {
         Label(title, 26)
         Spacer(Modifier.height(8.u))
-        Label(subtitle, 20, color = Palette.TextSecondary)
+        Label(subtitle, 20, color = LocalInk.current.secondary)
     }
 }

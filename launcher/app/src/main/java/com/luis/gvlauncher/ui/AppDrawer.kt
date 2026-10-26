@@ -32,7 +32,7 @@ fun AppDrawer(apps: List<AppEntry>, onLaunch: (AppEntry) -> Unit, onClose: () ->
     Column(Modifier.fillMaxSize().padding(horizontal = 60.u, vertical = 36.u)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
-                Icons.Rounded.ArrowBack, "Volver", tint = Color.White,
+                Icons.Rounded.ArrowBack, "Volver", tint = LocalInk.current.primary,
                 modifier = Modifier.size(64.u).clip(RoundedCornerShape(32.u)).clickable(onClick = onClose).padding(10.u),
             )
             Spacer(Modifier.width(20.u))

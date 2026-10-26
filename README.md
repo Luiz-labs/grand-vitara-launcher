@@ -14,7 +14,10 @@ Pantalla de inicio moderna y liviana para las radios Android chinas instaladas e
 - Tarjeta de **Waze** con botones directos a **Casa** y **Trabajo** + velocidad por GPS.
 - Control de la música que esté sonando (Spotify, YouTube Music, etc.).
 - Accesos a Teléfono, Radio FM, Ecualizador y Apple CarPlay (con dongle Carlinkit / Autokit).
+- **Modo oscuro, claro o automático** (claro de día, oscuro de noche para no encandilar).
 - Sin mapa propio ni procesos pesados, para que corra en radios de 1 GB.
+
+![Modo claro](diseno/vista-modo-claro.png)
 
 ![Colores disponibles](diseno/colores.png)
 
@@ -22,6 +25,7 @@ Pantalla de inicio moderna y liviana para las radios Android chinas instaladas e
 En la pantalla de inicio, toca el **ícono de ajustes** de la tarjeta principal (o la imagen del auto):
 - **Tu nombre**: aparece en el saludo.
 - **Modelo**: 3 puertas, 5 puertas o **Mi foto**.
+- **Tema de pantalla**: Automático (claro de 6:00 a 18:00), Oscuro o Claro.
 - **Color**: toca una muestra y la vista previa cambia al instante. "Original" deja la foto tal cual (3 puertas blanca, Nomade vino).
 
 **Usar tu propia foto:** queda mejor una foto lateral con **fondo transparente** (PNG).

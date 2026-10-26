@@ -53,10 +53,24 @@ data class CarPaint(
     }
 }
 
+/** Tema de pantalla. AUTO: claro de día (6:00–17:59) y oscuro de noche. */
+enum class ThemeMode(val label: String) {
+    AUTO("Automático"),
+    OSCURO("Oscuro"),
+    CLARO("Claro");
+
+    fun isLight(hour: Int) = when (this) {
+        CLARO -> true
+        OSCURO -> false
+        AUTO -> hour in 6..17
+    }
+}
+
 data class CarProfile(
     val driverName: String,
     val model: CarModel,
     val paint: String,
+    val theme: ThemeMode = ThemeMode.AUTO,
 )
 
 /** Guarda la personalización en el equipo (sobrevive reinicios de la radio). */
@@ -71,6 +85,8 @@ class ProfileStore(private val context: Context) {
         model = runCatching { CarModel.valueOf(prefs.getString("modelo", null)!!) }
             .getOrDefault(Config.DEFAULT_MODEL),
         paint = prefs.getString("color", null) ?: Config.DEFAULT_PAINT,
+        theme = runCatching { ThemeMode.valueOf(prefs.getString("tema", null)!!) }
+            .getOrDefault(ThemeMode.AUTO),
     )
 
     fun save(p: CarProfile) {
@@ -78,6 +94,7 @@ class ProfileStore(private val context: Context) {
             .putString("nombre", p.driverName.trim().ifBlank { Config.DRIVER_NAME })
             .putString("modelo", p.model.name)
             .putString("color", p.paint)
+            .putString("tema", p.theme.name)
             .apply()
     }
 
