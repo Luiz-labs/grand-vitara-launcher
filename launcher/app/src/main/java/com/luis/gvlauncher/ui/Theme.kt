@@ -15,8 +15,8 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 
 /**
- * Colores del launcher. Las superficies (fondo, barra lateral, tarjetas neutras, textos) cambian
- * entre modo oscuro y claro; las tarjetas de color (auto y música) son iguales en ambos modos.
+ * Colores del launcher. En modo oscuro las tarjetas del auto y de música son de color (texto blanco);
+ * en modo claro todo es blanco con texto oscuro.
  * [light] es un estado de Compose: al cambiarlo, toda la pantalla se vuelve a pintar sola.
  */
 object Palette {
@@ -38,14 +38,18 @@ object Palette {
     val WazeBlue = Color(0xFF33CCFF)
     val EqAmber = Color(0xFFFFB547)
 
-    // Tarjetas de color: iguales en ambos modos.
-    val HeroTop = Color(0xFF123A9E)
-    val HeroBottom = Color(0xFF0A1F5E)
-    val HeroBorder = Color(0xFF2C57C2)
+    // Tarjetas principales: de color en modo oscuro, blancas en modo claro.
+    val HeroTop get() = pick(0xFF123A9E, 0xFFFFFFFF)
+    val HeroBottom get() = pick(0xFF0A1F5E, 0xFFEAF1FF)
+    val HeroBorder get() = pick(0xFF2C57C2, 0xFFBFD3FF)
 
-    val MediaTop = Color(0xFF2B1F9A)
-    val MediaBottom = Color(0xFF3A2BC4)
-    val MediaBorder = Color(0xFF5B49E8)
+    val MediaTop get() = pick(0xFF2B1F9A, 0xFFFFFFFF)
+    val MediaBottom get() = pick(0xFF3A2BC4, 0xFFF1EEFF)
+    val MediaBorder get() = pick(0xFF5B49E8, 0xFFD5CCFF)
+    /** Acento de la tarjeta de música (botón play, barra de progreso). */
+    val MediaAccent get() = pick(0xFFFFFFFF, 0xFF5B49E8)
+    /** Ícono/texto sobre [MediaAccent]. */
+    val OnMediaAccent get() = pick(0xFF2B1F9A, 0xFFFFFFFF)
 
     // Tarjetas neutras: cambian con el modo.
     val NavTop get() = pick(0xFF0C2160, 0xFFFFFFFF)
@@ -70,7 +74,12 @@ data class Ink(val primary: Color, val secondary: Color) {
 
 val LocalInk = compositionLocalOf { Ink.OnColor }
 
-/** Envuelve contenido que va sobre un fondo de color (siempre texto blanco). */
+/** Contenido de las tarjetas del auto y de música: blanco en modo oscuro, oscuro en modo claro. */
+@Composable
+fun CardInk(content: @Composable () -> Unit) =
+    CompositionLocalProvider(LocalInk provides if (Palette.light) Ink.surface() else Ink.OnColor, content = content)
+
+/** Envuelve contenido que va sobre un fondo de color fijo (siempre texto blanco). */
 @Composable
 fun OnColor(content: @Composable () -> Unit) =
     CompositionLocalProvider(LocalInk provides Ink.OnColor, content = content)

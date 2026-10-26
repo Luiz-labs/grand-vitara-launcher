@@ -273,7 +273,7 @@ private fun HeroCard(now: Date, state: HomeState, actions: HomeActions, modifier
         in 12..18 -> "Buenas tardes"
         else -> "Buenas noches"
     }
-    GlassCard(Palette.HeroTop, Palette.HeroBottom, Palette.HeroBorder, modifier) { OnColor {
+    GlassCard(Palette.HeroTop, Palette.HeroBottom, Palette.HeroBorder, modifier) { CardInk {
         Column(Modifier.fillMaxSize().padding(start = 40.u, end = 28.u, top = 36.u, bottom = 24.u)) {
             Row(verticalAlignment = Alignment.Top) {
                 Column(Modifier.weight(1f)) {
@@ -283,7 +283,7 @@ private fun HeroCard(now: Date, state: HomeState, actions: HomeActions, modifier
                 }
                 // Toca el ícono del auto para abrir Personalizar (nombre, modelo y color).
                 Box(Modifier.clip(CircleShape).clickable(onClick = actions.openCustomize)) {
-                    CircleOutline(88.u, Color(0x88B8CCFF)) {
+                    CircleOutline(88.u, if (Palette.light) Palette.Accent.copy(alpha = 0.5f) else Color(0x88B8CCFF)) {
                         Icon(Icons.Rounded.Tune, "Personalizar", tint = LocalInk.current.primary, modifier = Modifier.size(44.u))
                     }
                 }
@@ -355,7 +355,7 @@ private fun WeatherStats(weather: Weather?) {
             .fillMaxWidth()
             .height(68.u)
             .clip(RoundedCornerShape(34.u))
-            .background(Color(0x66081A52))
+            .background(if (Palette.light) Palette.ChipBg else Color(0x66081A52))
             .padding(horizontal = 32.u),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -496,7 +496,7 @@ private fun MediaCard(np: NowPlaying?, actions: HomeActions, modifier: Modifier)
     GlassCard(
         Palette.MediaTop, Palette.MediaBottom, Palette.MediaBorder, modifier,
         onClick = actions.openMusic,
-    ) { OnColor {
+    ) { CardInk {
         Column(Modifier.fillMaxSize().padding(start = 36.u, end = 36.u, top = 34.u, bottom = 18.u)) {
             Row(Modifier.weight(1f)) {
                 Box(
@@ -518,7 +518,7 @@ private fun MediaCard(np: NowPlaying?, actions: HomeActions, modifier: Modifier)
                 Column(Modifier.weight(1f).padding(top = 40.u)) {
                     Label(np?.title?.ifBlank { null } ?: "Sin música", 26)
                     Spacer(Modifier.height(8.u))
-                    Label(np?.artist?.ifBlank { null } ?: "Toca para abrir", 21, color = Color(0xFFCFC8FF))
+                    Label(np?.artist?.ifBlank { null } ?: "Toca para abrir", 21, color = LocalInk.current.secondary)
                 }
                 if (np != null) {
                     // Bluetooth glyph only when the phone streams over A2DP; app sources get a note.
@@ -537,12 +537,12 @@ private fun MediaCard(np: NowPlaying?, actions: HomeActions, modifier: Modifier)
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                RoundButton(Icons.Rounded.SkipPrevious, 72, Color(0x33FFFFFF), Color.White, actions.previous)
+                RoundButton(Icons.Rounded.SkipPrevious, 72, Palette.ChipBg, LocalInk.current.primary, actions.previous)
                 RoundButton(
                     if (np?.playing == true) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                    92, Color.White, Color(0xFF2B1F9A), actions.playPause,
+                    92, Palette.MediaAccent, Palette.OnMediaAccent, actions.playPause,
                 )
-                RoundButton(Icons.Rounded.SkipNext, 72, Color(0x33FFFFFF), Color.White, actions.next)
+                RoundButton(Icons.Rounded.SkipNext, 72, Palette.ChipBg, LocalInk.current.primary, actions.next)
             }
         }
     } }
@@ -554,11 +554,11 @@ private fun Progress(np: NowPlaying?, @Suppress("UNUSED_PARAMETER") tick: Long) 
     val dur = np?.durationMs ?: 0L
     val fraction = if (dur > 0) (pos.toFloat() / dur).coerceIn(0f, 1f) else 0f
     Box(Modifier.fillMaxWidth().height(22.u), contentAlignment = Alignment.CenterStart) {
-        Box(Modifier.fillMaxWidth().height(6.u).clip(RoundedCornerShape(3.u)).background(Color(0x55FFFFFF)))
-        Box(Modifier.fillMaxWidth(fraction).height(6.u).clip(RoundedCornerShape(3.u)).background(Color.White))
+        Box(Modifier.fillMaxWidth().height(6.u).clip(RoundedCornerShape(3.u)).background(LocalInk.current.primary.copy(alpha = 0.25f)))
+        Box(Modifier.fillMaxWidth(fraction).height(6.u).clip(RoundedCornerShape(3.u)).background(Palette.MediaAccent))
         Row(Modifier.fillMaxWidth()) {
             Spacer(Modifier.fillMaxWidth(fraction))
-            Box(Modifier.offset(x = (-11).u).size(22.u).clip(CircleShape).background(Color.White))
+            Box(Modifier.offset(x = (-11).u).size(22.u).clip(CircleShape).background(Palette.MediaAccent))
         }
     }
     Row(Modifier.fillMaxWidth().padding(top = 6.u)) {

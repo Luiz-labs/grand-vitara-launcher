@@ -79,7 +79,7 @@ fun CustomizeScreen(
             GlassCard(
                 Palette.HeroTop, Palette.HeroBottom, Palette.HeroBorder,
                 Modifier.weight(1f).fillMaxHeight(),
-            ) { OnColor {
+            ) { CardInk {
                 Column(Modifier.fillMaxSize().padding(36.u)) {
                     Label("Hola, ${profile.driverName.ifBlank { Config.DRIVER_NAME }}", 48, weight = FontWeight.SemiBold)
                     Label(Config.CAR_NAME, 26, color = LocalInk.current.secondary)
