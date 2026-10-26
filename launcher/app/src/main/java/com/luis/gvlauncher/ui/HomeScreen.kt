@@ -33,6 +33,7 @@ import androidx.compose.material.icons.rounded.CellTower
 import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.DirectionsCar
 import androidx.compose.material.icons.rounded.FlashOn
+import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Work
 import androidx.compose.material.icons.rounded.Home
@@ -65,6 +66,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -93,6 +95,7 @@ class HomeActions(
     val openEqualizer: () -> Unit,
     val openCarPlay: () -> Unit,
     val openApps: () -> Unit,
+    val openCustomize: () -> Unit,
     val openSettings: () -> Unit,
     val cycleCity: () -> Unit,
     val playPause: () -> Unit,
@@ -107,6 +110,10 @@ data class HomeState(
     val radioLabel: String = "Sintonizar",
     /** Ciudad del clima elegida ("Automático", "Lima", …). */
     val cityLabel: String = "Automático",
+    /** Nombre del conductor (editable en Personalizar). */
+    val driverName: String = Config.DRIVER_NAME,
+    /** Imagen del auto ya con modelo y color aplicados; null mientras se prepara. */
+    val carImage: ImageBitmap? = null,
     /** Live GPS fix, null until the unit has one. */
     val fix: GeoFix? = null,
 )
@@ -134,7 +141,7 @@ fun HomeScreen(state: HomeState, actions: HomeActions) {
                     .padding(start = 36.u, end = 30.u, top = 22.u, bottom = 70.u),
                 horizontalArrangement = Arrangement.spacedBy(25.u),
             ) {
-                HeroCard(now, state, actions.cycleCity, Modifier.weight(614f).fillMaxHeight())
+                HeroCard(now, state, actions, Modifier.weight(614f).fillMaxHeight())
                 Column(
                     Modifier.weight(458f).fillMaxHeight(),
                     verticalArrangement = Arrangement.spacedBy(22.u),
@@ -259,7 +266,7 @@ private fun VDivider() {
 }
 
 @Composable
-private fun HeroCard(now: Date, state: HomeState, onCycleCity: () -> Unit, modifier: Modifier) {
+private fun HeroCard(now: Date, state: HomeState, actions: HomeActions, modifier: Modifier) {
     val hour = remember(now.time / 60000) { Calendar.getInstance().get(Calendar.HOUR_OF_DAY) }
     val greeting = when (hour) {
         in 5..11 -> "Buenos días"
@@ -270,22 +277,31 @@ private fun HeroCard(now: Date, state: HomeState, onCycleCity: () -> Unit, modif
         Column(Modifier.fillMaxSize().padding(start = 40.u, end = 28.u, top = 36.u, bottom = 24.u)) {
             Row(verticalAlignment = Alignment.Top) {
                 Column(Modifier.weight(1f)) {
-                    Label("Hola, ${Config.DRIVER_NAME}", 48, weight = FontWeight.SemiBold)
+                    Label("Hola, ${state.driverName}", 48, weight = FontWeight.SemiBold)
                     Spacer(Modifier.height(6.u))
                     Label("$greeting · ${Config.CAR_NAME}", 26, color = Palette.TextSecondary)
                 }
-                CircleOutline(88.u, Color(0x88B8CCFF)) {
-                    Icon(Icons.Rounded.DirectionsCar, null, tint = Color.White, modifier = Modifier.size(46.u))
+                // Toca el ícono del auto para abrir Personalizar (nombre, modelo y color).
+                Box(Modifier.clip(CircleShape).clickable(onClick = actions.openCustomize)) {
+                    CircleOutline(88.u, Color(0x88B8CCFF)) {
+                        Icon(Icons.Rounded.Tune, "Personalizar", tint = Color.White, modifier = Modifier.size(44.u))
+                    }
                 }
             }
-            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                Image(
-                    painterResource(R.drawable.car), null,
-                    contentScale = ContentScale.Fit,
-                    modifier = Modifier.fillMaxSize().offset(y = 6.u),
-                )
+            Box(
+                Modifier.weight(1f).fillMaxWidth().clickable(onClick = actions.openCustomize),
+                contentAlignment = Alignment.Center,
+            ) {
+                val car = state.carImage
+                if (car != null) {
+                    Image(
+                        car, null,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.fillMaxSize().offset(y = 6.u),
+                    )
+                }
             }
-            WeatherBlock(state, onCycleCity)
+            WeatherBlock(state, actions.cycleCity)
             WeatherStats(state.weather)
         }
     }

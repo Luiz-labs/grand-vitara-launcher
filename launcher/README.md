@@ -34,4 +34,5 @@ bash scripts/revertir.sh 192.168.X.X      # vuelve al launcher original
 ## Personalizar
 - `app/src/main/java/com/luis/gvlauncher/Config.kt`: nombre, ciudades del clima y apps de cada acceso.
   Cada acceso busca primero por **paquete** y, si no lo encuentra, por **nombre visible** de la app.
-- `app/src/main/res/drawable-nodpi/car.png`: imagen del carro (PNG con fondo transparente, ~900×420).
+- `app/src/main/res/drawable-nodpi/car_3p.png` y `car_5p.png`: imágenes base del auto (carrocería azul, así funciona el cambio de color).
+- El nombre, el modelo y el color se cambian desde la app: toca el ícono de ajustes de la tarjeta principal.

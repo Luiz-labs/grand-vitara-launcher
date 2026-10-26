@@ -30,7 +30,7 @@ import org.robolectric.annotation.GraphicsMode
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class HomeScreenshotTest {
 
-    private val noop = HomeActions({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
+    private val noop = HomeActions({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
 
     private fun fakeArt(): Bitmap {
         val bmp = Bitmap.createBitmap(300, 300, Bitmap.Config.ARGB_8888)

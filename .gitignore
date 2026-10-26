@@ -21,3 +21,7 @@ captures/
 .DS_Store
 Thumbs.db
 __pycache__/
+
+# Herramientas locales (scrcpy, etc.)
+tools/
+apps_radio.txt

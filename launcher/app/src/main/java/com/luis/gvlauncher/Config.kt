@@ -13,8 +13,14 @@ package com.luis.gvlauncher
  *       de radio FM, Bluetooth y ecualizador al inicio de cada lista.
  */
 object Config {
-    const val DRIVER_NAME = "Luis"
+    /** Valores por defecto: cada usuario los cambia desde la pantalla Personalizar (toca el ícono del auto). */
+    const val DRIVER_NAME = "Conductor"
     const val CAR_NAME = "Grand Vitara"
+    val DEFAULT_MODEL = com.luis.gvlauncher.data.CarModel.TRES_PUERTAS
+    const val DEFAULT_PAINT = "Original"
+
+    /** Ruta alternativa para la foto propia, para radios sin selector de archivos. */
+    const val CUSTOM_PHOTO_PATH = "/sdcard/Download/auto.png"
 
     /** Ciudades para el clima (toca el clima para cambiar). "Automático" usa el GPS. */
     val CITIES = listOf(
