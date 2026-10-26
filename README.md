@@ -14,10 +14,22 @@ Pantalla de inicio moderna y liviana para las radios Android chinas instaladas e
 - Tarjeta de **Waze** con botones directos a **Casa** y **Trabajo** + velocidad por GPS.
 - Control de la música que esté sonando (Spotify, YouTube Music, etc.).
 - Accesos a Teléfono, Radio FM, Ecualizador y Apple CarPlay (con dongle Carlinkit / Autokit).
+- **Pantallas propias** en la barra lateral:
+  - **Navegación**: buscador de destinos, Casa/Trabajo, velocidad y destinos favoritos. Waze o Google Maps (Apple Maps se usa con CarPlay).
+  - **Teléfono**: favoritos de marcación rápida y teclado. La llamada la hace la app Bluetooth de la radio.
+  - **Música**: reproductor grande y fuentes: Bluetooth, Apple Music, Spotify, YouTube Music, USB y Radio FM.
+  - **Ajustes**: brillo, volumen, WiFi, Bluetooth, tema, app de música y de navegación por defecto.
 - **Modo oscuro, claro o automático** (claro de día, oscuro de noche para no encandilar).
 - Sin mapa propio ni procesos pesados, para que corra en radios de 1 GB.
 
 ![Modo claro](diseno/vista-modo-claro.png)
+
+### Pantallas de la barra lateral
+| Navegación | Teléfono |
+|---|---|
+| ![Navegación](diseno/pantalla-nav.png) | ![Teléfono](diseno/pantalla-phone.png) |
+| **Música** | **Ajustes** |
+| ![Música](diseno/pantalla-music.png) | ![Ajustes](diseno/pantalla-settings.png) |
 
 ![Colores disponibles](diseno/colores.png)
 

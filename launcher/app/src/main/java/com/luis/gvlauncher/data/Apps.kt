@@ -1,6 +1,5 @@
 package com.luis.gvlauncher.data
 
-import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
@@ -50,16 +49,20 @@ object Apps {
      */
     fun launchShortcut(context: Context, shortcut: Shortcut): Boolean {
         if (launchAny(context, shortcut.packages)) return true
-        val pkg = findByLabel(context, shortcut.labels) ?: return false
+        val pkg = findByLabel(context, shortcut.labels, shortcut.exclude) ?: return false
         return launch(context, pkg)
     }
 
-    fun findByLabel(context: Context, keywords: List<String>): String? {
+    /** Paquete que se abriría con este acceso, o null si no hay app instalada. */
+    fun resolve(context: Context, shortcut: Shortcut): String? =
+        firstInstalled(context, shortcut.packages) ?: findByLabel(context, shortcut.labels, shortcut.exclude)
+
+    fun findByLabel(context: Context, keywords: List<String>, exclude: Set<String> = emptySet()): String? {
         if (keywords.isEmpty()) return null
         val pm = context.packageManager
         val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
         val apps = pm.queryIntentActivities(intent, 0)
-            .filter { it.activityInfo.packageName != context.packageName }
+            .filter { it.activityInfo.packageName != context.packageName && it.activityInfo.packageName !in exclude }
             .map { normalize(it.loadLabel(pm).toString()) to it.activityInfo.packageName }
         // Orden de prioridad = orden de las palabras clave en Config.
         for (k in keywords.map(::normalize)) {
@@ -67,6 +70,39 @@ object Apps {
                 ?.let { return it.second }
         }
         return null
+    }
+
+    /** Navega a una dirección o lugar escrito, con la app de navegación elegida. */
+    fun navigateTo(context: Context, app: NavApp, destination: String): Boolean {
+        val q = Uri.encode(destination.trim())
+        val uri = when (app) {
+            NavApp.WAZE -> "waze://?q=$q&navigate=yes"
+            NavApp.GOOGLE_MAPS -> "google.navigation:q=$q"
+        }
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(uri)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        resolve(context, app.shortcut)?.let { intent.setPackage(it) }
+        return start(context, intent)
+    }
+
+    /**
+     * Ir a Casa / Trabajo. Waze usa los lugares guardados en Waze; Google Maps usa la dirección
+     * que el usuario guardó en la pantalla Navegación.
+     */
+    fun navigateFavorite(context: Context, app: NavApp, favorite: String, address: String): Boolean =
+        when {
+            app == NavApp.WAZE -> openWazeFavorite(context, favorite)
+            address.isNotBlank() -> navigateTo(context, app, address)
+            else -> false
+        }
+
+    /** Llama por la app de teléfono de la radio (Bluetooth). Sin permiso, abre el marcador. */
+    fun call(context: Context, number: String): Boolean {
+        val uri = Uri.parse("tel:" + Uri.encode(number.filter { it.isDigit() || it == '+' || it == '*' || it == '#' }))
+        val canCall = context.checkSelfPermission(android.Manifest.permission.CALL_PHONE) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+        val intent = Intent(if (canCall) Intent.ACTION_CALL else Intent.ACTION_DIAL, uri)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        return start(context, intent) || start(context, Intent(Intent.ACTION_DIAL, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 
     /** Waze: "home" / "work" abren directo la ruta a Casa / Trabajo guardados en Waze. */
@@ -94,7 +130,7 @@ object Apps {
     private fun start(context: Context, intent: Intent): Boolean = try {
         context.startActivity(intent)
         true
-    } catch (e: ActivityNotFoundException) {
+    } catch (e: Exception) { // ActivityNotFound o SecurityException
         false
     }
 

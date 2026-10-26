@@ -46,6 +46,10 @@ object Palette {
     val MediaTop get() = pick(0xFF2B1F9A, 0xFFFFFFFF)
     val MediaBottom get() = pick(0xFF3A2BC4, 0xFFF1EEFF)
     val MediaBorder get() = pick(0xFF5B49E8, 0xFFD5CCFF)
+    val TealTop get() = pick(0xFF0F6B5A, 0xFFFFFFFF)
+    val TealBottom get() = pick(0xFF0A3B45, 0xFFE8F7F2)
+    val TealBorder get() = pick(0xFF1FA48A, 0xFFB5E6D8)
+
     /** Acento de la tarjeta de música (botón play, barra de progreso). */
     val MediaAccent get() = pick(0xFFFFFFFF, 0xFF5B49E8)
     /** Ícono/texto sobre [MediaAccent]. */

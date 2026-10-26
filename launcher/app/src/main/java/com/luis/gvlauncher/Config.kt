@@ -30,14 +30,45 @@ object Config {
         City("Callao", -12.0566, -77.1181),
     )
 
+    // ---- Navegación (se elige en Ajustes; por defecto Waze) ----
     val WAZE = Shortcut(
         packages = listOf("com.waze"),
         labels = listOf("waze"),
     )
-    /** Respaldo si Waze no está instalado. */
-    val NAVIGATION_FALLBACK = Shortcut(
+    val GOOGLE_MAPS = Shortcut(
         packages = listOf("com.google.android.apps.maps"),
-        labels = listOf("maps", "mapas", "navi"),
+        labels = listOf("maps", "mapas"),
+    )
+
+    // ---- Música (se elige en Ajustes; por defecto Apple Music) ----
+    val APPLE_MUSIC = Shortcut(
+        packages = listOf("com.apple.android.music"),
+        labels = listOf("apple music"),
+    )
+    val SPOTIFY = Shortcut(
+        packages = listOf("com.spotify.music"),
+        labels = listOf("spotify"),
+    )
+    val YOUTUBE_MUSIC = Shortcut(
+        packages = listOf("com.google.android.apps.youtube.music"),
+        labels = listOf("youtube music", "yt music"),
+    )
+    /** Música del celular por Bluetooth (app de la radio). */
+    val BT_MUSIC = Shortcut(
+        packages = listOf("com.syu.btmusic", "com.ts.btmusic"),
+        labels = listOf("bt música", "música bt", "bt music", "música bluetooth", "bluetooth music", "a2dp"),
+    )
+    /** Reproductor de USB / tarjeta de la radio. */
+    val USB_MUSIC = Shortcut(
+        packages = listOf("com.syu.music", "com.ts.music", "com.android.music"),
+        labels = listOf("usb", "música", "musica", "reproductor", "multimedia"),
+        exclude = setOf("com.apple.android.music", "com.spotify.music", "com.google.android.apps.youtube.music"),
+    )
+    /** Ajustes de fábrica de la radio (cámara de retroceso, timón, canbus). */
+    val CAR_SETTINGS = Shortcut(
+        packages = listOf("com.syu.settings", "com.ts.settings"),
+        labels = listOf("ajustes del auto", "ajustes del coche", "car settings", "configuración", "ajustes", "settings"),
+        exclude = setOf("com.android.settings"),
     )
 
     val PHONE = Shortcut(
@@ -47,10 +78,6 @@ object Config {
     val RADIO = Shortcut(
         packages = listOf("com.android.fmradio", "com.syu.radio", "com.ts.radio", "com.jancar.radio"),
         labels = listOf("radio", "fm"),
-    )
-    val MUSIC = Shortcut(
-        packages = listOf("com.spotify.music", "com.google.android.apps.youtube.music"),
-        labels = listOf("música", "musica", "music"),
     )
     val EQUALIZER = Shortcut(
         packages = emptyList(),
@@ -68,4 +95,12 @@ object Config {
 
 data class City(val name: String, val lat: Double, val lon: Double)
 
-data class Shortcut(val packages: List<String>, val labels: List<String>)
+/**
+ * Acceso a una app: primero por paquete exacto, luego por nombre visible.
+ * [exclude]: paquetes que nunca deben coincidir por nombre (ej. no confundir "Ajustes" de Android).
+ */
+data class Shortcut(
+    val packages: List<String>,
+    val labels: List<String>,
+    val exclude: Set<String> = emptySet(),
+)

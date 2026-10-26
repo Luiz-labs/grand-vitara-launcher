@@ -21,6 +21,9 @@ echo "Dando permisos (música, ubicación para clima y velocidad)..."
 adb -s "$D" shell cmd notification allow_listener "$PKG/$PKG.data.MediaListenerService" || true
 adb -s "$D" shell pm grant "$PKG" android.permission.ACCESS_FINE_LOCATION || true
 adb -s "$D" shell pm grant "$PKG" android.permission.ACCESS_COARSE_LOCATION || true
+adb -s "$D" shell pm grant "$PKG" android.permission.CALL_PHONE || true
+# Brillo desde la pantalla Ajustes del launcher
+adb -s "$D" shell appops set "$PKG" WRITE_SETTINGS allow || true
 
 echo "Poniéndolo como launcher predeterminado..."
 adb -s "$D" shell cmd package set-home-activity "$PKG/.MainActivity"

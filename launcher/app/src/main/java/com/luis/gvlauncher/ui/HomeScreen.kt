@@ -110,6 +110,8 @@ data class HomeState(
     val radioLabel: String = "Sintonizar",
     /** Ciudad del clima elegida ("Automático", "Lima", …). */
     val cityLabel: String = "Automático",
+    /** App de navegación elegida ("Waze", "Google Maps"). */
+    val navLabel: String = "Waze",
     /** Nombre del conductor (editable en Personalizar). */
     val driverName: String = Config.DRIVER_NAME,
     /** Imagen del auto ya con modelo y color aplicados; null mientras se prepara. */
@@ -131,8 +133,8 @@ fun HomeScreen(state: HomeState, actions: HomeActions) {
         }
     }
 
-    Row(Modifier.fillMaxSize()) {
-        SideRail(actions)
+    // La barra lateral la dibuja MainActivity (es compartida con las demás pantallas).
+    run {
         Column(Modifier.fillMaxSize()) {
             TopBar(now, state)
             Row(
@@ -166,52 +168,6 @@ fun HomeScreen(state: HomeState, actions: HomeActions) {
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun SideRail(actions: HomeActions) {
-    Column(
-        Modifier
-            .width(128.u)
-            .fillMaxHeight()
-            .background(Palette.Rail)
-            .padding(top = 135.u, bottom = 110.u),
-        verticalArrangement = Arrangement.SpaceBetween,
-    ) {
-        RailItem(Icons.Rounded.Home, selected = true) {}
-        RailItem(Icons.Rounded.Navigation, onClick = actions.openNavigation)
-        RailItem(Icons.Rounded.Phone, onClick = actions.openPhone)
-        RailItem(Icons.Rounded.MusicNote, onClick = actions.openMusic)
-        RailItem(Icons.Rounded.Apps, onClick = actions.openApps)
-        RailItem(Icons.Rounded.Settings, onClick = actions.openSettings)
-    }
-}
-
-@Composable
-private fun RailItem(icon: ImageVector, selected: Boolean = false, onClick: () -> Unit) {
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .height(96.u)
-            .background(if (selected) Palette.RailSelected else Color.Transparent)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (selected) {
-            Box(
-                Modifier
-                    .align(Alignment.CenterStart)
-                    .width(5.u)
-                    .height(76.u)
-                    .background(Palette.Accent, RoundedCornerShape(3.u))
-            )
-        }
-        Icon(
-            icon, null,
-            tint = if (selected) Palette.Accent else LocalInk.current.secondary,
-            modifier = Modifier.size(48.u),
-        )
     }
 }
 
@@ -438,16 +394,16 @@ private fun WazeCard(state: HomeState, actions: HomeActions, modifier: Modifier)
                 }
                 Spacer(Modifier.width(18.u))
                 Column(Modifier.weight(1f)) {
-                    Label("Waze", 30, weight = FontWeight.SemiBold)
+                    Label(state.navLabel, 30, weight = FontWeight.SemiBold)
                     Spacer(Modifier.height(2.u))
                     Label("¿A dónde vamos?", 21, color = LocalInk.current.secondary)
                 }
                 val speed = state.fix?.speedKmh
-                if (speed != null) OnColor {
+                if (speed != null) CardInk {
                     Row(
                         Modifier
                             .clip(RoundedCornerShape(16.u))
-                            .background(Color(0xE60B1E55))
+                            .background(if (Palette.light) Palette.ChipBg else Color(0xE60B1E55))
                             .padding(horizontal = 16.u, vertical = 8.u),
                         verticalAlignment = Alignment.Bottom,
                     ) {

@@ -71,6 +71,8 @@ data class CarProfile(
     val model: CarModel,
     val paint: String,
     val theme: ThemeMode = ThemeMode.AUTO,
+    val musicApp: MusicApp = MusicApp.APPLE_MUSIC,
+    val navApp: NavApp = NavApp.WAZE,
 )
 
 /** Guarda la personalización en el equipo (sobrevive reinicios de la radio). */
@@ -87,6 +89,10 @@ class ProfileStore(private val context: Context) {
         paint = prefs.getString("color", null) ?: Config.DEFAULT_PAINT,
         theme = runCatching { ThemeMode.valueOf(prefs.getString("tema", null)!!) }
             .getOrDefault(ThemeMode.AUTO),
+        musicApp = runCatching { MusicApp.valueOf(prefs.getString("musica", null)!!) }
+            .getOrDefault(MusicApp.APPLE_MUSIC),
+        navApp = runCatching { NavApp.valueOf(prefs.getString("navegacion", null)!!) }
+            .getOrDefault(NavApp.WAZE),
     )
 
     fun save(p: CarProfile) {
@@ -95,6 +101,8 @@ class ProfileStore(private val context: Context) {
             .putString("modelo", p.model.name)
             .putString("color", p.paint)
             .putString("tema", p.theme.name)
+            .putString("musica", p.musicApp.name)
+            .putString("navegacion", p.navApp.name)
             .apply()
     }
 
