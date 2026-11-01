@@ -85,14 +85,14 @@ fun NavScreen(
                 "Casa", Icons.Rounded.Home, Palette.HeroTop, Palette.HeroBottom, Palette.HeroBorder,
                 subtitle = favSubtitle(app, homeAddress),
                 onClick = actions.goHome,
-                onEdit = if (app == NavApp.WAZE) null else ({ editing = "casa"; editText = homeAddress }),
+                onEdit = { editing = "casa"; editText = homeAddress },
                 modifier = Modifier.weight(1f),
             )
             DestinationCard(
                 "Trabajo", Icons.Rounded.Work, Palette.TealTop, Palette.TealBottom, Palette.TealBorder,
                 subtitle = favSubtitle(app, workAddress),
                 onClick = actions.goWork,
-                onEdit = if (app == NavApp.WAZE) null else ({ editing = "trabajo"; editText = workAddress }),
+                onEdit = { editing = "trabajo"; editText = workAddress },
                 modifier = Modifier.weight(1f),
             )
             SurfaceCard(Modifier.weight(1f).fillMaxHeight()) {
@@ -165,8 +165,8 @@ fun NavScreen(
 }
 
 private fun favSubtitle(app: NavApp, address: String) = when {
-    app == NavApp.WAZE -> "Ruta directa · guardado en Waze"
     address.isNotBlank() -> address
+    app == NavApp.WAZE -> "Guardado en Waze · o pon la dirección con el lápiz"
     else -> "Toca el lápiz para poner la dirección"
 }
 

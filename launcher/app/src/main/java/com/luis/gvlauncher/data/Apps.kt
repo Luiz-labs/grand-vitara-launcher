@@ -75,22 +75,21 @@ object Apps {
     /** Navega a una dirección o lugar escrito, con la app de navegación elegida. */
     fun navigateTo(context: Context, app: NavApp, destination: String): Boolean {
         val q = Uri.encode(destination.trim())
-        val uri = when (app) {
-            NavApp.WAZE -> "waze://?q=$q&navigate=yes"
-            NavApp.GOOGLE_MAPS -> "google.navigation:q=$q"
-        }
+        // Usa la app que realmente está instalada (si Waze no está, cae a Google Maps).
+        val pkg = resolve(context, app.shortcut)
+        val uri = if (pkg == "com.waze") "waze://?q=$q&navigate=yes" else "google.navigation:q=$q"
         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(uri)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        resolve(context, app.shortcut)?.let { intent.setPackage(it) }
+        pkg?.let { intent.setPackage(it) }
         return start(context, intent)
     }
 
     /**
-     * Ir a Casa / Trabajo. Waze usa los lugares guardados en Waze; Google Maps usa la dirección
-     * que el usuario guardó en la pantalla Navegación.
+     * Ir a Casa / Trabajo. Con Waze instalado usa los lugares guardados en Waze; si no,
+     * usa la dirección que el usuario guardó en la pantalla Navegación.
      */
     fun navigateFavorite(context: Context, app: NavApp, favorite: String, address: String): Boolean =
         when {
-            app == NavApp.WAZE -> openWazeFavorite(context, favorite)
+            resolve(context, app.shortcut) == "com.waze" -> openWazeFavorite(context, favorite)
             address.isNotBlank() -> navigateTo(context, app, address)
             else -> false
         }

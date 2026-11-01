@@ -400,7 +400,7 @@ class MainActivity : ComponentActivity() {
     private fun goFavorite(favorite: String, address: String) {
         val ok = Apps.navigateFavorite(this, profile.navApp, favorite, address)
         if (!ok) {
-            if (profile.navApp == NavApp.GOOGLE_MAPS && address.isBlank()) {
+            if (Apps.resolve(this, profile.navApp.shortcut) != "com.waze" && address.isBlank()) {
                 toast("Pon la dirección con el lápiz en la tarjeta")
                 screen = Screen.NAV
             } else {

@@ -8,9 +8,8 @@ package com.luis.gvlauncher
  *  - labels:   si ningún paquete existe, se busca una app cuyo NOMBRE contenga
  *              alguna de estas palabras (sin importar mayúsculas ni tildes).
  *
- * Radio: Allwinner T3, firmware K2001N, 1 GB RAM, 9".
- * TODO: cuando saquemos la lista real por ADB, poner los paquetes exactos
- *       de radio FM, Bluetooth y ecualizador al inicio de cada lista.
+ * Radio: Allwinner T3, firmware NWD (K2001N), Android 7.1, 1 GB RAM, 9".
+ * Los paquetes com.nwd.* son las apps reales de esta radio (leídos con Activity Launcher).
  */
 object Config {
     /** Valores por defecto: cada usuario los cambia desde la pantalla Personalizar (toca el ícono del auto). */
@@ -55,42 +54,47 @@ object Config {
     )
     /** Música del celular por Bluetooth (app de la radio). */
     val BT_MUSIC = Shortcut(
-        packages = listOf("com.syu.btmusic", "com.ts.btmusic"),
+        packages = listOf("com.nwd.bt.music", "com.syu.btmusic"),
         labels = listOf("bt música", "música bt", "bt music", "música bluetooth", "bluetooth music", "a2dp"),
     )
     /** Reproductor de USB / tarjeta de la radio. */
     val USB_MUSIC = Shortcut(
-        packages = listOf("com.syu.music", "com.ts.music", "com.android.music"),
+        packages = listOf("com.nwd.android.music.ui", "com.miui.player", "com.syu.music"),
         labels = listOf("usb", "música", "musica", "reproductor", "multimedia"),
         exclude = setOf("com.apple.android.music", "com.spotify.music", "com.google.android.apps.youtube.music"),
     )
     /** Ajustes de fábrica de la radio (cámara de retroceso, timón, canbus). */
     val CAR_SETTINGS = Shortcut(
-        packages = listOf("com.syu.settings", "com.ts.settings"),
+        packages = listOf("com.android.car.setting", "com.nwd.can.setting"),
         labels = listOf("ajustes del auto", "ajustes del coche", "car settings", "configuración", "ajustes", "settings"),
         exclude = setOf("com.android.settings"),
     )
 
     val PHONE = Shortcut(
-        packages = listOf("com.android.bluetooth.phone", "com.syu.bt", "com.ts.bt", "com.jancar.bluetooth"),
-        labels = listOf("teléfono", "telefono", "bluetooth", "phone", "bt"),
+        packages = listOf("com.nwd.android.phone", "com.android.bluetooth.phone", "com.syu.bt"),
+        labels = listOf("teléfono", "telefono", "phone"),
     )
     val RADIO = Shortcut(
-        packages = listOf("com.android.fmradio", "com.syu.radio", "com.ts.radio", "com.jancar.radio"),
+        packages = listOf("com.nwd.radio", "com.android.fmradio", "com.syu.radio"),
         labels = listOf("radio", "fm"),
     )
+    /** Ecualizador de la radio ("EC"). */
     val EQUALIZER = Shortcut(
-        packages = emptyList(),
-        labels = listOf("ecualizador", "equalizer", "eq", "audio", "sonido"),
+        packages = listOf("com.nwd.audioset"),
+        labels = listOf("ec", "ecualizador", "equalizer", "eq", "audio"),
     )
-    /** Para el dongle Carlinkit (Autokit) o apps de proyección que traiga la radio. */
+    val VIDEO = Shortcut(
+        packages = listOf("com.nwd.android.video.ui"),
+        labels = listOf("vídeo", "video"),
+    )
+    /** Para el dongle Carlinkit (Autokit) o apps de proyección. */
     val CARPLAY = Shortcut(
         packages = listOf("com.carlinkit.autokit", "cn.manstep.phonemirrorBox", "com.zjinnova.zlink"),
         labels = listOf("autokit", "carplay", "zlink", "carlink", "phonelink", "autolink", "easyconnection"),
     )
 
     /** Fuentes de audio que significan "música del celular por Bluetooth". */
-    val BLUETOOTH_MEDIA_SOURCES = setOf("com.android.bluetooth")
+    val BLUETOOTH_MEDIA_SOURCES = setOf("com.android.bluetooth", "com.nwd.bt.music", "com.nwd.android.phone")
 }
 
 data class City(val name: String, val lat: Double, val lon: Double)
