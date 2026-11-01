@@ -16,6 +16,17 @@ android {
         versionName = "0.1"
     }
 
+    // Firma fija para que cada APK compilado en GitHub se instale como actualización
+    // (sin esto, cada compilación usa una llave distinta y Android lo rechaza).
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("gvlauncher.keystore")
+            storePassword = "gvlauncher"
+            keyAlias = "gvlauncher"
+            keyPassword = "gvlauncher"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
