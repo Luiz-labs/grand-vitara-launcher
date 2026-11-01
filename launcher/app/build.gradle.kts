@@ -9,11 +9,11 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.luis.gvlauncher"
+        applicationId = "com.luizlabs.gvlauncher"
         minSdk = 24
         targetSdk = 28 // head units: keep legacy behaviour (no background-start / storage restrictions)
-        versionCode = 1
-        versionName = "0.1"
+        versionCode = 2
+        versionName = "0.2"
     }
 
     // Firma fija para que cada APK compilado en GitHub se instale como actualización
