@@ -78,12 +78,15 @@ fun Label(
 
 /** Dark navy background with the large soft blue swooshes of the design. */
 @Composable
-fun AppBackground() {
+fun AppBackground(wallpaper: com.luis.gvlauncher.data.Wallpaper = com.luis.gvlauncher.data.Wallpaper.AZUL) {
+    // En modo claro se usa el fondo claro; en oscuro, el fondo elegido en Ajustes.
+    val base = if (Palette.light) Palette.Background else Color(wallpaper.base)
+    val glow = if (Palette.light) Palette.BackgroundGlow else Color(wallpaper.glow)
     Canvas(Modifier.fillMaxSize()) {
-        drawRect(Palette.Background)
+        drawRect(base)
         drawCircle(
             Brush.radialGradient(
-                listOf(Palette.BackgroundGlow.copy(alpha = 0.55f), Color.Transparent),
+                listOf(glow.copy(alpha = 0.55f), Color.Transparent),
                 center = Offset(size.width * 0.62f, size.height * -0.05f),
                 radius = size.width * 0.55f,
             ),
@@ -92,7 +95,7 @@ fun AppBackground() {
         )
         drawCircle(
             Brush.radialGradient(
-                listOf(Palette.BackgroundGlow.copy(alpha = 0.35f), Color.Transparent),
+                listOf(glow.copy(alpha = 0.35f), Color.Transparent),
                 center = Offset(size.width * 0.95f, size.height * 1.05f),
                 radius = size.width * 0.45f,
             ),

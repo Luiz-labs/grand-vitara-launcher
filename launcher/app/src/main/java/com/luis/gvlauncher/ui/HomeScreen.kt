@@ -33,6 +33,7 @@ import androidx.compose.material.icons.rounded.CellTower
 import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.DirectionsCar
 import androidx.compose.material.icons.rounded.FlashOn
+import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Work
@@ -76,6 +77,8 @@ import androidx.compose.ui.text.font.FontWeight
 import com.luis.gvlauncher.Config
 import com.luis.gvlauncher.R
 import com.luis.gvlauncher.data.GeoFix
+import com.luis.gvlauncher.data.NavCardMode
+import com.luis.gvlauncher.data.Place
 import com.luis.gvlauncher.data.NowPlaying
 import com.luis.gvlauncher.data.Weather
 import kotlinx.coroutines.delay
@@ -101,6 +104,10 @@ class HomeActions(
     val playPause: () -> Unit,
     val next: () -> Unit,
     val previous: () -> Unit,
+    /** Ir a un destino favorito (tarjeta de navegación en modo Favoritos). */
+    val goPlace: (Place) -> Unit = {},
+    /** Tocar la hora abre el protector de pantalla (hora en grande). */
+    val openSaver: () -> Unit = {},
 )
 
 data class HomeState(
@@ -118,6 +125,12 @@ data class HomeState(
     val carImage: ImageBitmap? = null,
     /** Live GPS fix, null until the unit has one. */
     val fix: GeoFix? = null,
+    /** Qué muestra la tarjeta de navegación. */
+    val navMode: NavCardMode = NavCardMode.CASA_TRABAJO,
+    /** Destinos favoritos (para el modo Favoritos). */
+    val places: List<Place> = emptyList(),
+    /** Fuente elegida para la tarjeta de música ("Bluetooth", "Radio FM", o null = lo que suene). */
+    val musicSource: String? = null,
 )
 
 private val spanish = Locale("es", "ES")
@@ -136,7 +149,7 @@ fun HomeScreen(state: HomeState, actions: HomeActions) {
     // La barra lateral la dibuja MainActivity (es compartida con las demás pantallas).
     run {
         Column(Modifier.fillMaxSize()) {
-            TopBar(now, state)
+            TopBar(now, state, actions.openSaver)
             Row(
                 Modifier
                     .fillMaxSize()
@@ -149,7 +162,7 @@ fun HomeScreen(state: HomeState, actions: HomeActions) {
                     verticalArrangement = Arrangement.spacedBy(22.u),
                 ) {
                     WazeCard(state, actions, Modifier.weight(295f).fillMaxWidth())
-                    MediaCard(state.nowPlaying, actions, Modifier.weight(376f).fillMaxWidth())
+                    MediaCard(state.nowPlaying, state.musicSource, actions, Modifier.weight(376f).fillMaxWidth())
                 }
                 Column(
                     Modifier.weight(359f).fillMaxHeight(),
@@ -172,7 +185,7 @@ fun HomeScreen(state: HomeState, actions: HomeActions) {
 }
 
 @Composable
-private fun TopBar(now: Date, state: HomeState) {
+private fun TopBar(now: Date, state: HomeState, onClock: () -> Unit) {
     val time = remember(now.time / 60000) { SimpleDateFormat("HH:mm", spanish).format(now) }
     val date = remember(now.time / 60000) {
         SimpleDateFormat("EEE, d 'de' MMMM", spanish).format(now)
@@ -187,7 +200,7 @@ private fun TopBar(now: Date, state: HomeState) {
                 .padding(start = 36.u, end = 72.u),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Label(time, 52, weight = FontWeight.Medium)
+            Label(time, 52, weight = FontWeight.Medium, modifier = Modifier.clickable(onClick = onClock))
             Spacer(Modifier.width(28.u))
             Label(date, 26, color = LocalInk.current.secondary)
             Spacer(Modifier.width(42.u))
@@ -399,7 +412,7 @@ private fun WazeCard(state: HomeState, actions: HomeActions, modifier: Modifier)
                     Label("¿A dónde vamos?", 21, color = LocalInk.current.secondary)
                 }
                 val speed = state.fix?.speedKmh
-                if (speed != null) CardInk {
+                if (speed != null && state.navMode != NavCardMode.VELOCIDAD) CardInk {
                     Row(
                         Modifier
                             .clip(RoundedCornerShape(16.u))
@@ -414,9 +427,28 @@ private fun WazeCard(state: HomeState, actions: HomeActions, modifier: Modifier)
                 }
             }
             Spacer(Modifier.weight(1f))
-            Row(horizontalArrangement = Arrangement.spacedBy(16.u)) {
-                WazeChip(Icons.Rounded.Home, "Casa", actions.wazeHome, Modifier.weight(1f))
-                WazeChip(Icons.Rounded.Work, "Trabajo", actions.wazeWork, Modifier.weight(1f))
+            when (state.navMode) {
+                NavCardMode.CASA_TRABAJO -> Row(horizontalArrangement = Arrangement.spacedBy(16.u)) {
+                    WazeChip(Icons.Rounded.Home, "Casa", actions.wazeHome, Modifier.weight(1f))
+                    WazeChip(Icons.Rounded.Work, "Trabajo", actions.wazeWork, Modifier.weight(1f))
+                }
+                NavCardMode.FAVORITOS -> {
+                    val top = state.places.take(2)
+                    if (top.isEmpty()) {
+                        Label("Agrega favoritos en la pantalla Navegación", 20, color = LocalInk.current.secondary)
+                    } else {
+                        Row(horizontalArrangement = Arrangement.spacedBy(16.u)) {
+                            top.forEach { p ->
+                                WazeChip(Icons.Rounded.Star, p.name, { actions.goPlace(p) }, Modifier.weight(1f))
+                            }
+                        }
+                    }
+                }
+                NavCardMode.VELOCIDAD -> Row(verticalAlignment = Alignment.Bottom) {
+                    Label(state.fix?.speedKmh?.toString() ?: "--", 76, weight = FontWeight.SemiBold)
+                    Spacer(Modifier.width(10.u))
+                    Label("km/h", 26, color = LocalInk.current.secondary, modifier = Modifier.padding(bottom = 14.u))
+                }
             }
         }
     }
@@ -441,7 +473,7 @@ private fun WazeChip(icon: ImageVector, text: String, onClick: () -> Unit, modif
 }
 
 @Composable
-private fun MediaCard(np: NowPlaying?, actions: HomeActions, modifier: Modifier) {
+private fun MediaCard(np: NowPlaying?, source: String?, actions: HomeActions, modifier: Modifier) {
     var tick by remember { mutableLongStateOf(0L) }
     LaunchedEffect(np?.playing) {
         while (np?.playing == true) {
@@ -467,14 +499,39 @@ private fun MediaCard(np: NowPlaying?, actions: HomeActions, modifier: Modifier)
                     if (art != null) {
                         Image(art.asImageBitmap(), null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
                     } else {
-                        Icon(Icons.Rounded.MusicNote, null, tint = Color(0x99FFFFFF), modifier = Modifier.size(64.u))
+                        Icon(
+                            when (source) {
+                                "Bluetooth" -> Icons.Rounded.Bluetooth
+                                "Radio FM" -> Icons.Rounded.CellTower
+                                else -> Icons.Rounded.MusicNote
+                            },
+                            null, tint = Color(0x99FFFFFF), modifier = Modifier.size(64.u),
+                        )
                     }
                 }
                 Spacer(Modifier.width(26.u))
-                Column(Modifier.weight(1f).padding(top = 40.u)) {
-                    Label(np?.title?.ifBlank { null } ?: "Sin música", 26)
+                Column(Modifier.weight(1f).padding(top = 30.u)) {
+                    if (source != null) {
+                        Label(source.uppercase(), 16, color = LocalInk.current.secondary)
+                        Spacer(Modifier.height(4.u))
+                    }
+                    Label(
+                        np?.title?.ifBlank { null } ?: when (source) {
+                            "Bluetooth" -> "Bluetooth"
+                            "Radio FM" -> "Radio FM"
+                            else -> "Sin música"
+                        },
+                        26,
+                    )
                     Spacer(Modifier.height(8.u))
-                    Label(np?.artist?.ifBlank { null } ?: "Toca para abrir", 21, color = LocalInk.current.secondary)
+                    Label(
+                        np?.artist?.ifBlank { null } ?: when (source) {
+                            "Bluetooth" -> "Reproduce desde tu iPhone"
+                            "Radio FM" -> "Toca para abrir la radio"
+                            else -> "Toca para abrir"
+                        },
+                        21, color = LocalInk.current.secondary,
+                    )
                 }
                 if (np != null) {
                     // Bluetooth glyph only when the phone streams over A2DP; app sources get a note.

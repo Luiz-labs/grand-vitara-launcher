@@ -34,6 +34,10 @@ import com.luis.gvlauncher.data.Contact
 import com.luis.gvlauncher.data.FavoritesStore
 import com.luis.gvlauncher.data.LocationRepository
 import com.luis.gvlauncher.data.MediaRepository
+import com.luis.gvlauncher.data.MusicCardMode
+import com.luis.gvlauncher.data.NotifBridge
+import com.luis.gvlauncher.data.NowPlaying
+import com.luis.gvlauncher.data.SaverEffect
 import com.luis.gvlauncher.data.NavApp
 import com.luis.gvlauncher.data.Place
 import com.luis.gvlauncher.data.ProfileStore
@@ -62,6 +66,7 @@ import com.luis.gvlauncher.ui.PhoneScreen
 import com.luis.gvlauncher.ui.Screen
 import com.luis.gvlauncher.ui.SettingsActions
 import com.luis.gvlauncher.ui.SettingsScreen
+import com.luis.gvlauncher.ui.ScreenSaver
 import com.luis.gvlauncher.ui.SideRail
 import com.luis.gvlauncher.ui.SystemState
 import com.luis.gvlauncher.ui.musicSourceIcon
@@ -95,6 +100,23 @@ class MainActivity : ComponentActivity() {
     private var homeAddress by mutableStateOf("")
     private var workAddress by mutableStateOf("")
     private var sys by mutableStateOf(SystemState())
+    private var notificationAccess by mutableStateOf(false)
+    private var mediaStarted = false
+
+    /** Protector de pantalla: visible y último toque del usuario. */
+    private var saverOn by mutableStateOf(false)
+    private var lastTouch = android.os.SystemClock.uptimeMillis()
+
+    /** Paquetes que cuentan como "Bluetooth" o "Radio" para la tarjeta de música. */
+    private val btPackages by lazy { Config.BLUETOOTH_MEDIA_SOURCES + Config.BT_MUSIC.packages }
+    private val radioPackages by lazy { Config.RADIO.packages.toSet() }
+
+    /** Paquetes a los que se dirigen los botones de música según la fuente elegida. */
+    private fun preferredPackages(): Set<String> = when (profile.musicCard) {
+        MusicCardMode.AUTO -> emptySet()
+        MusicCardMode.BLUETOOTH -> btPackages
+        MusicCardMode.RADIO -> radioPackages
+    }
 
     private val pickPhoto = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri == null) return@registerForActivityResult
@@ -127,6 +149,7 @@ class MainActivity : ComponentActivity() {
         location = LocationRepository(applicationContext)
         store = ProfileStore(applicationContext)
         favorites = FavoritesStore(applicationContext)
+        NotifBridge.watched = btPackages + radioPackages
         system = SystemControls(applicationContext)
         profile = store.load()
         places = favorites.places()
@@ -149,7 +172,13 @@ class MainActivity : ComponentActivity() {
             wazeHome = { goFavorite("home", homeAddress) },
             wazeWork = { goFavorite("work", workAddress) },
             openPhone = { goTo(Screen.PHONE) },
-            openMusic = { openMusicApp() },
+            openMusic = {
+                when (profile.musicCard) {
+                    MusicCardMode.AUTO -> openMusicApp()
+                    MusicCardMode.BLUETOOTH -> open(Config.BT_MUSIC, "Música BT")
+                    MusicCardMode.RADIO -> open(Config.RADIO, "Radio FM")
+                }
+            },
             openRadio = { open(Config.RADIO, "Radio FM") },
             openEqualizer = { open(Config.EQUALIZER, "Ecualizador") },
             openCarPlay = { open(Config.CARPLAY, "CarPlay") },
@@ -161,9 +190,11 @@ class MainActivity : ComponentActivity() {
                 prefs.edit().putInt("city", cityIndex).apply()
                 weather = null
             },
-            playPause = { media.playPause() },
-            next = { media.next() },
-            previous = { media.previous() },
+            playPause = { media.playPause(preferredPackages()) },
+            next = { media.next(preferredPackages()) },
+            previous = { media.previous(preferredPackages()) },
+            goPlace = { if (!Apps.navigateTo(this, profile.navApp, it.address)) notInstalled(profile.navApp.label) },
+            openSaver = { saverOn = true },
         )
 
         val navActions = NavActions(
@@ -211,11 +242,51 @@ class MainActivity : ComponentActivity() {
             openCustomize = { customizing = true },
             openCarSettings = { open(Config.CAR_SETTINGS, "Ajustes del auto") },
             openAndroidSettings = { Apps.openSettings(this) },
+            setNavCard = { updateProfile(profile.copy(navCard = it)) },
+            setMusicCard = { updateProfile(profile.copy(musicCard = it)) },
+            setWallpaper = { updateProfile(profile.copy(wallpaper = it)) },
+            openNotificationAccess = {
+                if (!startSafely(Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"))) {
+                    toast("Abre Activity Launcher y busca NotificationAccess")
+                }
+            },
+            setSaverMinutes = { updateProfile(profile.copy(saverMinutes = it)) },
+            setSaverEffect = { updateProfile(profile.copy(saverEffect = it)) },
+            previewSaver = { saverOn = true },
+            openHomeChooser = {
+                if (!startSafely(Intent(android.provider.Settings.ACTION_HOME_SETTINGS)) &&
+                    !startSafely(Intent(android.provider.Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS))
+                ) {
+                    toast("Tu radio no tiene esa pantalla. Usa Activity Launcher → HomeSettings")
+                }
+            },
         )
 
         setContent {
             val nowPlaying by media.state.collectAsStateWithLifecycle()
             val fix by location.fix.collectAsStateWithLifecycle()
+            val allSessions by media.all.collectAsStateWithLifecycle()
+            val notifs by NotifBridge.items.collectAsStateWithLifecycle()
+
+            // Lo que muestra la tarjeta de música según la fuente elegida en Ajustes.
+            fun fromNotif(pkgs: Set<String>): NowPlaying? = notifs.entries.firstOrNull { it.key in pkgs }?.let { (pkg, n) ->
+                NowPlaying(n.title, n.text, n.art, 0, 0, android.os.SystemClock.elapsedRealtime(), false, pkg)
+            }
+            val cardNowPlaying: NowPlaying? = when (profile.musicCard) {
+                MusicCardMode.AUTO -> nowPlaying ?: fromNotif(btPackages)
+                MusicCardMode.BLUETOOTH -> allSessions.entries.firstOrNull { it.key in btPackages }?.value ?: fromNotif(btPackages)
+                MusicCardMode.RADIO -> allSessions.entries.firstOrNull { it.key in radioPackages }?.value ?: fromNotif(radioPackages)
+            }
+            val cardSource: String? = when (profile.musicCard) {
+                MusicCardMode.BLUETOOTH -> "Bluetooth"
+                MusicCardMode.RADIO -> "Radio FM"
+                MusicCardMode.AUTO -> when (cardNowPlaying?.sourcePackage) {
+                    null -> null
+                    in btPackages -> "Bluetooth"
+                    in radioPackages -> "Radio FM"
+                    else -> null
+                }
+            }
 
             // Redibuja el auto cuando cambia el modelo, el color o la foto propia (en segundo plano).
             LaunchedEffect(profile.model, profile.paint, photoVersion) {
@@ -234,6 +305,17 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
+            // Protector de pantalla: se activa tras X minutos sin tocar la pantalla.
+            LaunchedEffect(profile.saverMinutes) {
+                while (true) {
+                    delay(5_000)
+                    val mins = profile.saverMinutes
+                    if (mins > 0 && !saverOn && !customizing &&
+                        android.os.SystemClock.uptimeMillis() - lastTouch > mins * 60_000L
+                    ) saverOn = true
+                }
+            }
+
             LaunchedEffect(cityIndex) {
                 val city = Config.CITIES.getOrNull(cityIndex)
                 while (true) {
@@ -245,7 +327,7 @@ class MainActivity : ComponentActivity() {
             BoxWithConstraints(Modifier.fillMaxSize()) {
                 val unit = minOf(maxWidth / DESIGN_W, maxHeight / DESIGN_H)
                 CompositionLocalProvider(LocalUnit provides unit, LocalInk provides Ink.surface()) {
-                    AppBackground()
+                    AppBackground(profile.wallpaper)
                     if (customizing) {
                         BackHandler { closeCustomize() }
                         CustomizeScreen(
@@ -273,24 +355,29 @@ class MainActivity : ComponentActivity() {
                                 when (screen) {
                                     Screen.HOME -> HomeScreen(
                                         HomeState(
-                                            weather, nowPlaying, bluetoothOn,
+                                            weather, cardNowPlaying, bluetoothOn,
                                             cityLabel = Config.CITIES.getOrNull(cityIndex)?.name ?: "Automático",
                                             navLabel = profile.navApp.label,
                                             driverName = profile.driverName.ifBlank { Config.DRIVER_NAME },
                                             carImage = carImage,
                                             fix = fix,
+                                            navMode = profile.navCard,
+                                            places = places,
+                                            musicSource = cardSource,
                                         ),
                                         homeActions,
                                     )
                                     Screen.NAV -> NavScreen(profile.navApp, fix, places, homeAddress, workAddress, navActions)
                                     Screen.PHONE -> PhoneScreen(bluetoothOn, contacts, phoneActions)
                                     Screen.MUSIC -> MusicScreen(
-                                        nowPlaying,
-                                        musicSources.firstOrNull { nowPlaying?.sourcePackage in it.activeWhen }?.label,
+                                        nowPlaying ?: fromNotif(btPackages + radioPackages),
+                                        musicSources.firstOrNull { (nowPlaying ?: fromNotif(btPackages + radioPackages))?.sourcePackage in it.activeWhen }?.label,
                                         musicSources, musicActions,
                                     )
                                     Screen.APPS -> AppDrawer(
                                         drawerApps,
+                                        iconScale = profile.iconScale,
+                                        onScale = { updateProfile(profile.copy(iconScale = it)) },
                                         onLaunch = { Apps.launch(this@MainActivity, it.packageName) },
                                         onClose = { goTo(Screen.HOME) },
                                     )
@@ -300,14 +387,46 @@ class MainActivity : ComponentActivity() {
                                             packageManager.getPackageInfo(packageName, 0).versionName
                                         }.getOrNull() ?: "1.0",
                                         actions = settingsActions,
+                                        navCard = profile.navCard,
+                                        musicCard = profile.musicCard,
+                                        wallpaper = profile.wallpaper,
+                                        notificationAccess = notificationAccess,
+                                        saverMinutes = profile.saverMinutes,
+                                        saverEffect = profile.saverEffect,
                                     )
                                 }
                             }
                         }
                     }
+                    // Protector de pantalla encima de todo
+                    if (saverOn) {
+                        BackHandler { closeSaver() }
+                        ScreenSaver(
+                            wallpaper = profile.wallpaper,
+                            effect = profile.saverEffect,
+                            weather = weather,
+                            nowPlaying = cardNowPlaying ?: nowPlaying,
+                            onNextEffect = {
+                                val n = SaverEffect.entries[(profile.saverEffect.ordinal + 1) % SaverEffect.entries.size]
+                                updateProfile(profile.copy(saverEffect = n))
+                            },
+                            onDismiss = { closeSaver() },
+                        )
+                    }
                 }
             }
         }
+    }
+
+    /** Cualquier toque reinicia el contador del protector de pantalla. */
+    override fun dispatchTouchEvent(ev: android.view.MotionEvent): Boolean {
+        lastTouch = android.os.SystemClock.uptimeMillis()
+        return super.dispatchTouchEvent(ev)
+    }
+
+    private fun closeSaver() {
+        saverOn = false
+        lastTouch = android.os.SystemClock.uptimeMillis()
     }
 
     override fun onStart() {
@@ -336,6 +455,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onStop() {
+        saverOn = false
         media.stop()
         location.stop()
         unregisterReceiver(stateReceiver)
@@ -346,6 +466,7 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         if (customizing) closeCustomize()
+        closeSaver()
         screen = Screen.HOME
     }
 
@@ -356,6 +477,12 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun refreshSystem() {
+        notificationAccess = runCatching {
+            android.provider.Settings.Secure.getString(contentResolver, "enabled_notification_listeners")
+                ?.contains(packageName) == true
+        }.getOrDefault(false)
+        // Recién dado el permiso: reinicia la lectura de música para empezar a ver canciones.
+        if (notificationAccess && !mediaStarted) { media.stop(); media.start(); mediaStarted = true }
         bluetoothOn = system.bluetoothOn()
         sys = SystemState(
             brightness = system.brightness(),
@@ -376,6 +503,13 @@ class MainActivity : ComponentActivity() {
         store.save(profile)
         profile = store.load()
         customizing = false
+    }
+
+    private fun startSafely(intent: Intent): Boolean = try {
+        startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        true
+    } catch (e: Exception) {
+        false
     }
 
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_LONG).show()

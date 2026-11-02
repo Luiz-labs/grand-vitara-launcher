@@ -12,8 +12,8 @@ android {
         applicationId = "com.luizlabs.gvlauncher"
         minSdk = 24
         targetSdk = 28 // head units: keep legacy behaviour (no background-start / storage restrictions)
-        versionCode = 2
-        versionName = "0.2"
+        versionCode = 4
+        versionName = "0.4"
     }
 
     // Firma fija para que cada APK compilado en GitHub se instale como actualización

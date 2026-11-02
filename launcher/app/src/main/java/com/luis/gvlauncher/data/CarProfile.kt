@@ -66,6 +66,36 @@ enum class ThemeMode(val label: String) {
     }
 }
 
+/** Qué muestra la tarjeta de navegación del inicio. */
+enum class NavCardMode(val label: String) {
+    CASA_TRABAJO("Casa y Trabajo"),
+    FAVORITOS("Favoritos"),
+    VELOCIDAD("Velocidad"),
+}
+
+/** Qué muestra la tarjeta de música del inicio. */
+enum class MusicCardMode(val label: String) {
+    AUTO("Lo que suene"),
+    BLUETOOTH("Bluetooth"),
+    RADIO("Radio FM"),
+}
+
+/** Fondos de pantalla (se ven en modo oscuro; el modo claro usa su fondo claro). */
+enum class Wallpaper(val label: String, val base: Long, val glow: Long) {
+    AZUL("Azul", 0xFF050B1F, 0xFF0F2A78),
+    GRAFITO("Grafito", 0xFF0B0D10, 0xFF3A4048),
+    ATARDECER("Atardecer", 0xFF140812, 0xFF7A2E3A),
+    BOSQUE("Bosque", 0xFF04110C, 0xFF0F5A3C),
+    MORADO("Morado", 0xFF0C0718, 0xFF4B2A8C),
+}
+
+/** Animación del protector de pantalla. */
+enum class SaverEffect(val label: String) {
+    ONDAS("Ondas"),
+    AURORA("Aurora"),
+    QUIETO("Sin animación"),
+}
+
 data class CarProfile(
     val driverName: String,
     val model: CarModel,
@@ -73,6 +103,14 @@ data class CarProfile(
     val theme: ThemeMode = ThemeMode.AUTO,
     val musicApp: MusicApp = MusicApp.APPLE_MUSIC,
     val navApp: NavApp = NavApp.WAZE,
+    val navCard: NavCardMode = NavCardMode.CASA_TRABAJO,
+    val musicCard: MusicCardMode = MusicCardMode.AUTO,
+    /** Tamaño de íconos del cajón de apps, en % (80 a 160). */
+    val iconScale: Int = 120,
+    val wallpaper: Wallpaper = Wallpaper.AZUL,
+    /** Minutos sin tocar la pantalla para mostrar el protector (0 = desactivado). */
+    val saverMinutes: Int = 3,
+    val saverEffect: SaverEffect = SaverEffect.ONDAS,
 )
 
 /** Guarda la personalización en el equipo (sobrevive reinicios de la radio). */
@@ -93,6 +131,16 @@ class ProfileStore(private val context: Context) {
             .getOrDefault(MusicApp.APPLE_MUSIC),
         navApp = runCatching { NavApp.valueOf(prefs.getString("navegacion", null)!!) }
             .getOrDefault(NavApp.WAZE),
+        navCard = runCatching { NavCardMode.valueOf(prefs.getString("tarjeta_nav", null)!!) }
+            .getOrDefault(NavCardMode.CASA_TRABAJO),
+        musicCard = runCatching { MusicCardMode.valueOf(prefs.getString("tarjeta_musica", null)!!) }
+            .getOrDefault(MusicCardMode.AUTO),
+        iconScale = prefs.getInt("iconos", 120).coerceIn(80, 160),
+        wallpaper = runCatching { Wallpaper.valueOf(prefs.getString("fondo", null)!!) }
+            .getOrDefault(Wallpaper.AZUL),
+        saverMinutes = prefs.getInt("protector_min", 3),
+        saverEffect = runCatching { SaverEffect.valueOf(prefs.getString("protector_efecto", null)!!) }
+            .getOrDefault(SaverEffect.ONDAS),
     )
 
     fun save(p: CarProfile) {
@@ -103,6 +151,12 @@ class ProfileStore(private val context: Context) {
             .putString("tema", p.theme.name)
             .putString("musica", p.musicApp.name)
             .putString("navegacion", p.navApp.name)
+            .putString("tarjeta_nav", p.navCard.name)
+            .putString("tarjeta_musica", p.musicCard.name)
+            .putInt("iconos", p.iconScale)
+            .putString("fondo", p.wallpaper.name)
+            .putInt("protector_min", p.saverMinutes)
+            .putString("protector_efecto", p.saverEffect.name)
             .apply()
     }
 
