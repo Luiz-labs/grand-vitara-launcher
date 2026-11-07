@@ -32,6 +32,7 @@ import com.luis.gvlauncher.data.CarImages
 import com.luis.gvlauncher.data.CarProfile
 import com.luis.gvlauncher.data.Contact
 import com.luis.gvlauncher.data.FavoritesStore
+import com.luis.gvlauncher.data.HomeMode
 import com.luis.gvlauncher.data.LocationRepository
 import com.luis.gvlauncher.data.MediaRepository
 import com.luis.gvlauncher.data.MusicCardMode
@@ -49,6 +50,7 @@ import com.luis.gvlauncher.ui.AppDrawer
 import com.luis.gvlauncher.ui.CustomizeScreen
 import com.luis.gvlauncher.ui.DESIGN_H
 import com.luis.gvlauncher.ui.DESIGN_W
+import com.luis.gvlauncher.ui.DriveHomeScreen
 import com.luis.gvlauncher.ui.HomeActions
 import com.luis.gvlauncher.ui.HomeScreen
 import com.luis.gvlauncher.ui.HomeState
@@ -89,6 +91,10 @@ class MainActivity : ComponentActivity() {
     private var screen by mutableStateOf(Screen.HOME)
     private var drawerApps by mutableStateOf<List<AppEntry>>(emptyList())
     private var customizing by mutableStateOf(false)
+    /** Asistente de la primera vez (o repetido desde Ajustes). */
+    private var wizardOn by mutableStateOf(false)
+    /** Versión nueva disponible en GitHub, si la hay. */
+    private var update by mutableStateOf<com.luis.gvlauncher.data.UpdateInfo?>(null)
 
     private var profile by mutableStateOf(CarProfile(Config.DRIVER_NAME, Config.DEFAULT_MODEL, Config.DEFAULT_PAINT))
     private var carImage by mutableStateOf<ImageBitmap?>(null)
@@ -145,9 +151,11 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        hideSystemBars()
         media = MediaRepository(applicationContext)
         location = LocationRepository(applicationContext)
         store = ProfileStore(applicationContext)
+        wizardOn = !store.wizardDone()
         favorites = FavoritesStore(applicationContext)
         NotifBridge.watched = btPackages + radioPackages
         system = SystemControls(applicationContext)
@@ -195,6 +203,12 @@ class MainActivity : ComponentActivity() {
             previous = { media.previous(preferredPackages()) },
             goPlace = { if (!Apps.navigateTo(this, profile.navApp, it.address)) notInstalled(profile.navApp.label) },
             openSaver = { saverOn = true },
+            openNavScreen = { goTo(Screen.NAV) },
+            openMusicScreen = { goTo(Screen.MUSIC) },
+            switchMode = {
+                val next = if (profile.homeMode == HomeMode.CONDUCCION) HomeMode.COMPLETO else HomeMode.CONDUCCION
+                updateProfile(profile.copy(homeMode = next))
+            },
         )
 
         val navActions = NavActions(
@@ -233,7 +247,8 @@ class MainActivity : ComponentActivity() {
         val settingsActions = SettingsActions(
             setBrightness = { system.setBrightness(it); sys = sys.copy(brightness = it) },
             requestBrightnessPermission = { system.requestWriteSettings() },
-            setVolume = { system.setVolume(it); sys = sys.copy(volume = it) },
+            volumeStep = { up -> system.volumeStep(up) },
+            toggleMute = { system.toggleMute() },
             setWifi = { system.setWifi(it); sys = sys.copy(wifiOn = it) },
             setBluetooth = { system.setBluetooth(it); sys = sys.copy(bluetoothOn = it) },
             setTheme = { updateProfile(profile.copy(theme = it)) },
@@ -253,6 +268,8 @@ class MainActivity : ComponentActivity() {
             setSaverMinutes = { updateProfile(profile.copy(saverMinutes = it)) },
             setSaverEffect = { updateProfile(profile.copy(saverEffect = it)) },
             previewSaver = { saverOn = true },
+            openWizard = { wizardOn = true },
+            setHomeMode = { updateProfile(profile.copy(homeMode = it)) },
             openHomeChooser = {
                 if (!startSafely(Intent(android.provider.Settings.ACTION_HOME_SETTINGS)) &&
                     !startSafely(Intent(android.provider.Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS))
@@ -310,10 +327,17 @@ class MainActivity : ComponentActivity() {
                 while (true) {
                     delay(5_000)
                     val mins = profile.saverMinutes
-                    if (mins > 0 && !saverOn && !customizing &&
+                    if (mins > 0 && !saverOn && !customizing && !wizardOn && update == null &&
                         android.os.SystemClock.uptimeMillis() - lastTouch > mins * 60_000L
                     ) saverOn = true
                 }
+            }
+
+            // Aviso de versión nueva: se revisa un rato después de prender (si hay internet).
+            LaunchedEffect(Unit) {
+                delay(30_000)
+                val installed = installedVersion()
+                com.luis.gvlauncher.data.Updates.check(applicationContext, installed)?.let { update = it }
             }
 
             LaunchedEffect(cityIndex) {
@@ -328,7 +352,20 @@ class MainActivity : ComponentActivity() {
                 val unit = minOf(maxWidth / DESIGN_W, maxHeight / DESIGN_H)
                 CompositionLocalProvider(LocalUnit provides unit, LocalInk provides Ink.surface()) {
                     AppBackground(profile.wallpaper)
-                    if (customizing) {
+                    if (wizardOn) {
+                        BackHandler { finishWizard() }
+                        com.luis.gvlauncher.ui.WizardScreen(
+                            profile = profile,
+                            preview = carImage,
+                            renderCar = { p ->
+                                withContext(Dispatchers.Default) {
+                                    CarImages.render(applicationContext, p, store.customFile)?.asImageBitmap()
+                                }
+                            },
+                            onChange = { profile = it },
+                            onFinish = { finishWizard() },
+                        )
+                    } else if (customizing) {
                         BackHandler { closeCustomize() }
                         CustomizeScreen(
                             profile = profile,
@@ -349,24 +386,25 @@ class MainActivity : ComponentActivity() {
                     } else {
                         // Atrás: vuelve al inicio; en el inicio no hace nada.
                         BackHandler { if (screen != Screen.HOME) goTo(Screen.HOME) }
-                        Row(Modifier.fillMaxSize()) {
+                        val homeState = HomeState(
+                            weather, cardNowPlaying, bluetoothOn,
+                            cityLabel = Config.CITIES.getOrNull(cityIndex)?.name ?: "Automático",
+                            navLabel = profile.navApp.label,
+                            driverName = profile.driverName.ifBlank { Config.DRIVER_NAME },
+                            carImage = carImage,
+                            fix = fix,
+                            navMode = profile.navCard,
+                            places = places,
+                            musicSource = cardSource,
+                        )
+                        if (screen == Screen.HOME && profile.homeMode == HomeMode.CONDUCCION) {
+                            // Modo Conducción: pantalla completa con botones grandes, sin barra lateral.
+                            DriveHomeScreen(homeState, homeActions)
+                        } else Row(Modifier.fillMaxSize()) {
                             SideRail(screen) { goTo(it) }
                             androidx.compose.foundation.layout.Box(Modifier.weight(1f)) {
                                 when (screen) {
-                                    Screen.HOME -> HomeScreen(
-                                        HomeState(
-                                            weather, cardNowPlaying, bluetoothOn,
-                                            cityLabel = Config.CITIES.getOrNull(cityIndex)?.name ?: "Automático",
-                                            navLabel = profile.navApp.label,
-                                            driverName = profile.driverName.ifBlank { Config.DRIVER_NAME },
-                                            carImage = carImage,
-                                            fix = fix,
-                                            navMode = profile.navCard,
-                                            places = places,
-                                            musicSource = cardSource,
-                                        ),
-                                        homeActions,
-                                    )
+                                    Screen.HOME -> HomeScreen(homeState, homeActions)
                                     Screen.NAV -> NavScreen(profile.navApp, fix, places, homeAddress, workAddress, navActions)
                                     Screen.PHONE -> PhoneScreen(bluetoothOn, contacts, phoneActions)
                                     Screen.MUSIC -> MusicScreen(
@@ -383,9 +421,7 @@ class MainActivity : ComponentActivity() {
                                     )
                                     Screen.SETTINGS -> SettingsScreen(
                                         sys, profile.theme, profile.musicApp, profile.navApp,
-                                        version = runCatching {
-                                            packageManager.getPackageInfo(packageName, 0).versionName
-                                        }.getOrNull() ?: "1.0",
+                                        version = installedVersion(),
                                         actions = settingsActions,
                                         navCard = profile.navCard,
                                         musicCard = profile.musicCard,
@@ -393,8 +429,18 @@ class MainActivity : ComponentActivity() {
                                         notificationAccess = notificationAccess,
                                         saverMinutes = profile.saverMinutes,
                                         saverEffect = profile.saverEffect,
+                                        homeMode = profile.homeMode,
                                     )
                                 }
+                            }
+                        }
+                    }
+                    // Aviso de actualización (encima del inicio, debajo del protector)
+                    update?.let { info ->
+                        if (!wizardOn) {
+                            com.luis.gvlauncher.ui.UpdateDialog(info, installedVersion()) {
+                                com.luis.gvlauncher.data.Updates.snooze(applicationContext, info.version)
+                                update = null
                             }
                         }
                     }
@@ -416,6 +462,28 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    /**
+     * Pantalla completa: oculta la barra de Android (◁ ○ □, hora, íconos) para que el launcher
+     * use los 600 px de alto. Deslizando desde el borde aparece un momento y se vuelve a ocultar.
+     */
+    @Suppress("DEPRECATION")
+    private fun hideSystemBars() {
+        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN)
+        window.decorView.systemUiVisibility = (
+            android.view.View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or
+                android.view.View.SYSTEM_UI_FLAG_FULLSCREEN or
+                android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
+                android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+                android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+                android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+            )
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) hideSystemBars()
     }
 
     /** Cualquier toque reinicia el contador del protector de pantalla. */
@@ -445,6 +513,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        hideSystemBars()
         // Al volver de otra app (ej. permiso de brillo o volumen físico), relee el estado.
         refreshSystem()
     }
@@ -487,7 +556,6 @@ class MainActivity : ComponentActivity() {
         sys = SystemState(
             brightness = system.brightness(),
             canSetBrightness = system.canWriteSettings(),
-            volume = system.volume(),
             wifiOn = system.wifiOn(),
             wifiName = system.wifiName(),
             bluetoothOn = bluetoothOn,
@@ -497,6 +565,17 @@ class MainActivity : ComponentActivity() {
     private fun updateProfile(p: CarProfile) {
         profile = p
         store.save(p)
+    }
+
+    private fun installedVersion(): String = runCatching {
+        packageManager.getPackageInfo(packageName, 0).versionName
+    }.getOrNull() ?: "1.0"
+
+    /** Guarda lo elegido en el asistente y no lo vuelve a mostrar. */
+    private fun finishWizard() {
+        store.save(profile)
+        store.setWizardDone()
+        wizardOn = false
     }
 
     private fun closeCustomize() {

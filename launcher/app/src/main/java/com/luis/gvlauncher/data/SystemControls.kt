@@ -3,7 +3,11 @@ package com.luis.gvlauncher.data
 import android.bluetooth.BluetoothAdapter
 import android.content.Context
 import android.content.Intent
+import android.app.Instrumentation
 import android.media.AudioManager
+import android.os.Handler
+import android.os.Looper
+import android.view.KeyEvent
 import android.net.Uri
 import android.net.wifi.WifiManager
 import android.provider.Settings
@@ -42,14 +46,36 @@ class SystemControls(private val context: Context) {
         )
     }
 
-    // ---- Volumen multimedia (0..1) ----
-    fun volume(): Float = runCatching {
-        audio.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat() / audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-    }.getOrDefault(0.5f)
+    // ---- Volumen ----
+    // En esta radio el volumen real lo maneja el chip de audio (la ventanita con el número 0..40),
+    // no el volumen de Android, que se queda siempre al máximo. Por eso no se muestra un porcentaje:
+    // los botones − / + hacen lo mismo que los botones físicos de volumen de la radio.
 
-    fun setVolume(value: Float) = runCatching {
-        val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-        audio.setStreamVolume(AudioManager.STREAM_MUSIC, (value.coerceIn(0f, 1f) * max).toInt(), 0)
+    /** Sube (+1) o baja (−1) el volumen como el botón físico. */
+    fun volumeStep(up: Boolean) =
+        pressVolumeKey(if (up) KeyEvent.KEYCODE_VOLUME_UP else KeyEvent.KEYCODE_VOLUME_DOWN) {
+            audio.adjustStreamVolume(
+                AudioManager.STREAM_MUSIC,
+                if (up) AudioManager.ADJUST_RAISE else AudioManager.ADJUST_LOWER,
+                AudioManager.FLAG_SHOW_UI,
+            )
+        }
+
+    /** Silencia o quita el silencio. */
+    fun toggleMute() = pressVolumeKey(KeyEvent.KEYCODE_VOLUME_MUTE) {
+        audio.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_TOGGLE_MUTE, AudioManager.FLAG_SHOW_UI)
+    }
+
+    /**
+     * Simula la tecla de volumen dentro del launcher (igual que el botón físico, así el firmware
+     * muestra su ventanita y cambia el volumen real). Si el sistema no lo permite, usa el
+     * volumen de Android como respaldo.
+     */
+    private fun pressVolumeKey(keyCode: Int, fallback: () -> Unit) {
+        Thread {
+            val ok = runCatching { Instrumentation().sendKeyDownUpSync(keyCode) }.isSuccess
+            if (!ok) Handler(Looper.getMainLooper()).post { runCatching(fallback) }
+        }.start()
     }
 
     // ---- WiFi ----

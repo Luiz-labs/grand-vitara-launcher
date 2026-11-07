@@ -43,7 +43,8 @@ class LocationRepository(private val context: Context) {
             PackageManager.PERMISSION_GRANTED
         if (!granted || manager == null) return
         runCatching {
-            manager.getLastKnownLocation(LocationManager.GPS_PROVIDER)?.let(::publish)
+            // La última posición guardada puede ser vieja: se usa solo para ubicarse, con velocidad 0.
+            manager.getLastKnownLocation(LocationManager.GPS_PROVIDER)?.let { publish(it, stale = true) }
             manager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000L, 0f, listener, Looper.getMainLooper())
         }
     }
@@ -52,13 +53,44 @@ class LocationRepository(private val context: Context) {
         runCatching { manager?.removeUpdates(listener) }
     }
 
-    private fun publish(l: Location) {
-        val moving = l.hasSpeed() && l.speed > 1.5f // ~5 km/h: below that GPS bearing is noise
+    /** Lecturas seguidas por encima del umbral para arrancar (evita saltos sueltos del GPS). */
+    private var risingCount = 0
+
+    private fun publish(l: Location, stale: Boolean = false) {
+        val shown = if (stale) 0 else filteredSpeed(l)
+        val moving = shown > 0
         _fix.value = GeoFix(
             lat = l.latitude,
             lon = l.longitude,
             bearing = if (moving && l.hasBearing()) l.bearing else _fix.value?.bearing,
-            speedKmh = if (l.hasSpeed()) (l.speed * 3.6f).roundToInt() else null,
+            speedKmh = if (stale || l.hasSpeed()) shown else null,
         )
+    }
+
+    /**
+     * Velocidad "limpia" para mostrar. Con el auto parado el GPS se mueve unos metros y
+     * marca 1–5 km/h falsos; por eso:
+     *  - por debajo de [STOP_KMH] se muestra 0,
+     *  - para salir de 0 hacen falta 2 lecturas seguidas de al menos [START_KMH],
+     *  - si la precisión es mala (bajo techo, cochera) y la velocidad es baja, se toma como 0.
+     */
+    private fun filteredSpeed(l: Location): Int {
+        if (!l.hasSpeed()) return 0
+        val raw = l.speed * 3.6f
+        val badFix = l.hasAccuracy() && l.accuracy > BAD_ACCURACY_M
+        val current = _fix.value?.speedKmh ?: 0
+        if (badFix && raw < 15f) { risingCount = 0; return 0 }
+        if (current == 0) {
+            if (raw >= START_KMH) risingCount++ else risingCount = 0
+            return if (risingCount >= 2) raw.roundToInt() else 0
+        }
+        if (raw < STOP_KMH) { risingCount = 0; return 0 }
+        return raw.roundToInt()
+    }
+
+    private companion object {
+        const val START_KMH = 6f
+        const val STOP_KMH = 4f
+        const val BAD_ACCURACY_M = 25f
     }
 }

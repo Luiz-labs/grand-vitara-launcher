@@ -108,6 +108,11 @@ class HomeActions(
     val goPlace: (Place) -> Unit = {},
     /** Tocar la hora abre el protector de pantalla (hora en grande). */
     val openSaver: () -> Unit = {},
+    /** Pantallas de la barra lateral (las usa el dock del modo Conducción). */
+    val openNavScreen: () -> Unit = {},
+    val openMusicScreen: () -> Unit = {},
+    /** Cambia entre modo Conducción (botones grandes) y modo Completo. */
+    val switchMode: () -> Unit = {},
 )
 
 data class HomeState(
@@ -149,7 +154,7 @@ fun HomeScreen(state: HomeState, actions: HomeActions) {
     // La barra lateral la dibuja MainActivity (es compartida con las demás pantallas).
     run {
         Column(Modifier.fillMaxSize()) {
-            TopBar(now, state, actions.openSaver)
+            TopBar(now, state, actions.openSaver, actions.switchMode)
             Row(
                 Modifier
                     .fillMaxSize()
@@ -185,7 +190,7 @@ fun HomeScreen(state: HomeState, actions: HomeActions) {
 }
 
 @Composable
-private fun TopBar(now: Date, state: HomeState, onClock: () -> Unit) {
+private fun TopBar(now: Date, state: HomeState, onClock: () -> Unit, onSwitchMode: () -> Unit) {
     val time = remember(now.time / 60000) { SimpleDateFormat("HH:mm", spanish).format(now) }
     val date = remember(now.time / 60000) {
         SimpleDateFormat("EEE, d 'de' MMMM", spanish).format(now)
@@ -205,6 +210,21 @@ private fun TopBar(now: Date, state: HomeState, onClock: () -> Unit) {
             Label(date, 26, color = LocalInk.current.secondary)
             Spacer(Modifier.width(42.u))
             VDivider()
+            Spacer(Modifier.width(30.u))
+            // Volver a los botones grandes para manejar
+            Row(
+                Modifier
+                    .height(72.u)
+                    .clip(RoundedCornerShape(36.u))
+                    .background(Palette.ChipBg)
+                    .clickable(onClick = onSwitchMode)
+                    .padding(horizontal = 26.u),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Rounded.DirectionsCar, null, tint = Palette.Accent, modifier = Modifier.size(38.u))
+                Spacer(Modifier.width(10.u))
+                Label("Modo conducción", 24, weight = FontWeight.Medium)
+            }
             Spacer(Modifier.weight(1f))
             Icon(Icons.Rounded.LocationOn, null, tint = LocalInk.current.primary, modifier = Modifier.size(38.u))
             Spacer(Modifier.width(14.u))
@@ -355,7 +375,7 @@ private fun PillDivider() {
 
 /** Material has no "rain cloud", so drizzle/rain draws a cloud with falling streaks. */
 @Composable
-private fun WeatherIcon(code: Int?, isDay: Boolean, size: Dp) {
+internal fun WeatherIcon(code: Int?, isDay: Boolean, size: Dp) {
     val ink = LocalInk.current.primary
     val rainy = code != null && (code in 51..67 || code in 80..82)
     if (!rainy) {

@@ -12,8 +12,8 @@ android {
         applicationId = "com.luizlabs.gvlauncher"
         minSdk = 24
         targetSdk = 28 // head units: keep legacy behaviour (no background-start / storage restrictions)
-        versionCode = 4
-        versionName = "0.4"
+        versionCode = 5
+        versionName = "0.5"
     }
 
     // Firma fija para que cada APK compilado en GitHub se instale como actualización
@@ -64,8 +64,8 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.9.3")
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
-
-    // Offline street map for the navigation card (CPU renderer, fine on 32-bit ARMv7 units)
+    // Código QR del aviso de actualización
+    implementation("com.google.zxing:core:3.5.3")
 
     // Off-device screenshots of the home screen (./gradlew testDebugUnitTest)
     testImplementation("junit:junit:4.13.2")

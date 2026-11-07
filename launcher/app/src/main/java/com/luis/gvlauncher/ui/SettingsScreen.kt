@@ -29,7 +29,13 @@ import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.Navigation
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Tune
-import androidx.compose.material.icons.rounded.VolumeUp
+import androidx.compose.material.icons.rounded.VolumeOff
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Remove
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Wallpaper
 import androidx.compose.material.icons.rounded.Wifi
@@ -43,6 +49,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import com.luis.gvlauncher.data.HomeMode
 import com.luis.gvlauncher.data.MusicApp
 import com.luis.gvlauncher.data.MusicCardMode
 import com.luis.gvlauncher.data.NavCardMode
@@ -55,7 +62,6 @@ import com.luis.gvlauncher.data.ThemeMode
 data class SystemState(
     val brightness: Float = 0.7f,
     val canSetBrightness: Boolean = false,
-    val volume: Float = 0.5f,
     val wifiOn: Boolean = false,
     val wifiName: String? = null,
     val bluetoothOn: Boolean = false,
@@ -64,7 +70,9 @@ data class SystemState(
 class SettingsActions(
     val setBrightness: (Float) -> Unit,
     val requestBrightnessPermission: () -> Unit,
-    val setVolume: (Float) -> Unit,
+    /** Volumen real de la radio: true = subir, false = bajar. */
+    val volumeStep: (Boolean) -> Unit,
+    val toggleMute: () -> Unit,
     val setWifi: (Boolean) -> Unit,
     val setBluetooth: (Boolean) -> Unit,
     val setTheme: (ThemeMode) -> Unit,
@@ -84,6 +92,10 @@ class SettingsActions(
     val setSaverEffect: (SaverEffect) -> Unit = {},
     /** Muestra el protector ahora (para probarlo). */
     val previewSaver: () -> Unit = {},
+    /** Inicio con botones grandes (Conducción) o completo. */
+    val setHomeMode: (HomeMode) -> Unit = {},
+    /** Vuelve a mostrar el asistente de la primera vez. */
+    val openWizard: () -> Unit = {},
 )
 
 @Composable
@@ -100,6 +112,7 @@ fun SettingsScreen(
     notificationAccess: Boolean = false,
     saverMinutes: Int = 3,
     saverEffect: SaverEffect = SaverEffect.ONDAS,
+    homeMode: HomeMode = HomeMode.COMPLETO,
 ) {
     Column(Modifier.fillMaxSize().padding(start = 40.u, end = 36.u, top = 16.u, bottom = 30.u)) {
         ScreenHeader("Ajustes", "Grand Vitara Launcher")
@@ -108,8 +121,13 @@ fun SettingsScreen(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(20.u),
         ) {
-            // Brillo y volumen
+            // Pantalla de inicio: Conducción (botones grandes) o Completo
             Row(Modifier.fillMaxWidth().height(140.u), horizontalArrangement = Arrangement.spacedBy(20.u)) {
+                ChoiceCard(Icons.Rounded.DirectionsCar, "Pantalla de inicio", HomeMode.entries, homeMode,
+                    { it.label }, actions.setHomeMode, Modifier.weight(1f))
+            }
+            // Brillo y volumen
+            Row(Modifier.fillMaxWidth().height(180.u), horizontalArrangement = Arrangement.spacedBy(20.u)) {
                 SliderCard(
                     Icons.Rounded.BrightnessMedium, "Brillo", sys.brightness,
                     note = if (sys.canSetBrightness) "Pantalla de la radio" else "Toca para dar permiso",
@@ -118,11 +136,7 @@ fun SettingsScreen(
                     onChange = actions.setBrightness,
                     modifier = Modifier.weight(1f),
                 )
-                SliderCard(
-                    Icons.Rounded.VolumeUp, "Volumen", sys.volume,
-                    note = "Multimedia", enabled = true, onDisabledClick = {},
-                    onChange = actions.setVolume, modifier = Modifier.weight(1f),
-                )
+                VolumeCard(actions, Modifier.weight(1.3f))
             }
             // WiFi, Bluetooth, tema
             Row(Modifier.fillMaxWidth().height(140.u), horizontalArrangement = Arrangement.spacedBy(20.u)) {
@@ -185,6 +199,8 @@ fun SettingsScreen(
                         badgeColor = Color(0xFF5A6A8F), badgeIcon = Icons.Rounded.Home, onClick = actions.openHomeChooser) { Chevron() }
                     ListRow("Personalizar", "Nombre, modelo y color del auto, tema",
                         badgeColor = Palette.Accent, badgeIcon = Icons.Rounded.Tune, onClick = actions.openCustomize) { Chevron() }
+                    ListRow("Volver a configurar", "Repite el asistente de la primera vez",
+                        badgeColor = Palette.Accent, badgeIcon = Icons.Rounded.AutoAwesome, onClick = actions.openWizard) { Chevron() }
                     ListRow("Ajustes del auto", "Cámara de retroceso, timón, radio (ajustes de fábrica)",
                         badgeColor = Palette.PhoneGreen, badgeIcon = Icons.Rounded.DirectionsCar, onClick = actions.openCarSettings) { Chevron() }
                     ListRow("Ajustes de Android", "Sistema, fecha y hora, idioma",
@@ -236,6 +252,54 @@ private fun SliderCard(
             }
             Label(note, 18, color = LocalInk.current.secondary)
         }
+    }
+}
+
+/**
+ * Volumen con botones − y + grandes. No muestra porcentaje: el volumen real lo lleva la radio
+ * y al tocar aparece su propia ventanita con el número verdadero.
+ */
+@Composable
+private fun VolumeCard(actions: SettingsActions, modifier: Modifier) {
+    SurfaceCard(modifier.fillMaxHeight()) {
+        Row(
+            Modifier.fillMaxSize().padding(horizontal = 18.u, vertical = 14.u),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            VolumeButton(Icons.Rounded.Remove, "Bajar volumen", Palette.ChipBg, LocalInk.current.primary) {
+                actions.volumeStep(false)
+            }
+            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                Label("Volumen", 30, weight = FontWeight.Medium)
+                Label("El de la radio", 20, color = LocalInk.current.secondary)
+                Spacer(Modifier.height(8.u))
+                Row(
+                    Modifier
+                        .clip(RoundedCornerShape(30.u))
+                        .background(Palette.ChipBg)
+                        .clickable(onClick = actions.toggleMute)
+                        .padding(horizontal = 22.u, vertical = 10.u),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Rounded.VolumeOff, null, tint = LocalInk.current.primary, modifier = Modifier.size(30.u))
+                    Spacer(Modifier.width(8.u))
+                    Label("Silenciar", 22)
+                }
+            }
+            VolumeButton(Icons.Rounded.Add, "Subir volumen", Palette.Accent, Color.White) {
+                actions.volumeStep(true)
+            }
+        }
+    }
+}
+
+@Composable
+private fun VolumeButton(icon: ImageVector, description: String, bg: Color, fg: Color, onClick: () -> Unit) {
+    Box(
+        Modifier.size(150.u).clip(CircleShape).background(bg).clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(icon, description, tint = fg, modifier = Modifier.size(84.u))
     }
 }
 

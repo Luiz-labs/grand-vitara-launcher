@@ -10,10 +10,10 @@ import com.luis.gvlauncher.R
 import java.io.File
 
 /** Modelo de la imagen del auto que se muestra en la tarjeta principal. */
-enum class CarModel(val label: String) {
-    TRES_PUERTAS("3 puertas"),
-    CINCO_PUERTAS("5 puertas"),
-    FOTO_PROPIA("Mi foto"),
+enum class CarModel(val label: String, val detail: String) {
+    TRES_PUERTAS("Grand Vitara", "3 puertas"),
+    CINCO_PUERTAS("Grand Nomade", "5 puertas"),
+    FOTO_PROPIA("Mi foto", "Desde un archivo"),
 }
 
 /**
@@ -96,6 +96,12 @@ enum class SaverEffect(val label: String) {
     QUIETO("Sin animación"),
 }
 
+/** Pantalla de inicio: botones grandes para manejar, o la versión completa con tarjetas y barra lateral. */
+enum class HomeMode(val label: String) {
+    CONDUCCION("Conducción"),
+    COMPLETO("Completo"),
+}
+
 data class CarProfile(
     val driverName: String,
     val model: CarModel,
@@ -111,6 +117,7 @@ data class CarProfile(
     /** Minutos sin tocar la pantalla para mostrar el protector (0 = desactivado). */
     val saverMinutes: Int = 3,
     val saverEffect: SaverEffect = SaverEffect.ONDAS,
+    val homeMode: HomeMode = HomeMode.COMPLETO,
 )
 
 /** Guarda la personalización en el equipo (sobrevive reinicios de la radio). */
@@ -141,7 +148,14 @@ class ProfileStore(private val context: Context) {
         saverMinutes = prefs.getInt("protector_min", 3),
         saverEffect = runCatching { SaverEffect.valueOf(prefs.getString("protector_efecto", null)!!) }
             .getOrDefault(SaverEffect.ONDAS),
+        homeMode = runCatching { HomeMode.valueOf(prefs.getString("modo_inicio", null)!!) }
+            .getOrDefault(HomeMode.COMPLETO),
     )
+
+    /** true cuando ya se completó (o se saltó) el asistente de primera vez. */
+    fun wizardDone() = prefs.getBoolean("asistente_hecho", false)
+
+    fun setWizardDone() = prefs.edit().putBoolean("asistente_hecho", true).apply()
 
     fun save(p: CarProfile) {
         prefs.edit()
@@ -157,6 +171,7 @@ class ProfileStore(private val context: Context) {
             .putString("fondo", p.wallpaper.name)
             .putInt("protector_min", p.saverMinutes)
             .putString("protector_efecto", p.saverEffect.name)
+            .putString("modo_inicio", p.homeMode.name)
             .apply()
     }
 
