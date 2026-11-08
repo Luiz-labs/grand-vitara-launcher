@@ -12,26 +12,39 @@ android {
         applicationId = "com.luizlabs.gvlauncher"
         minSdk = 24
         targetSdk = 28 // head units: keep legacy behaviour (no background-start / storage restrictions)
-        versionCode = 5
-        versionName = "0.5"
+        versionCode = 6
+        versionName = "0.5.1"
     }
 
-    // Firma fija para que cada APK compilado en GitHub se instale como actualización
-    // (sin esto, cada compilación usa una llave distinta y Android lo rechaza).
+    // Firma de la versión final (release). La clave NO está en el repositorio:
+    //  - En GitHub sale de los secretos (KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD).
+    //  - En la Mac se usa la copia de ~/Documents/Claves/gvlauncher.keystore si existe.
+    // Siempre es la misma clave, así cada versión se instala encima de la anterior sin perder ajustes.
+    val keystorePath = System.getenv("KEYSTORE_FILE")
+        ?: "${System.getProperty("user.home")}/Documents/Claves/gvlauncher.keystore"
+    val hasKeystore = file(keystorePath).exists()
     signingConfigs {
-        getByName("debug") {
-            storeFile = file("gvlauncher.keystore")
-            storePassword = "gvlauncher"
-            keyAlias = "gvlauncher"
-            keyPassword = "gvlauncher"
+        create("labs") {
+            if (hasKeystore) {
+                storeFile = file(keystorePath)
+                storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "gvlauncher"
+                keyAlias = System.getenv("KEY_ALIAS") ?: "gvlauncher"
+                keyPassword = System.getenv("KEY_PASSWORD") ?: "gvlauncher"
+            }
         }
     }
 
     buildTypes {
         release {
+            // Versión final: código optimizado y sin recursos que no se usan (más liviana y rápida).
             isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            signingConfig = signingConfigs.getByName("debug")
+            if (hasKeystore) signingConfig = signingConfigs.getByName("labs")
+        }
+        debug {
+            // Las pruebas también se firman con la misma clave (si está disponible).
+            if (hasKeystore) signingConfig = signingConfigs.getByName("labs")
         }
     }
     compileOptions {

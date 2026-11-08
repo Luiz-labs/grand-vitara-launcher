@@ -1,8 +1,6 @@
 Novedades de esta versión (las líneas con guion salen en el aviso de la radio):
 
-- Modo Conducción: botones grandes para manejar
-- Pantalla completa, sin la doble barra de arriba
-- Volumen − y + con el volumen real de la radio
-- Velocímetro en 0 cuando el auto está parado
+- Versión final optimizada: más liviana y más rápida
+- Firma protegida (la clave ya no está en el repositorio)
 
-También: asistente de primera vez ("¿Cuál es tu Suzuki?") y aviso de versiones nuevas con QR.
+Incluye todo lo de la v0.5: Modo Conducción, pantalla completa, volumen de la radio, velocímetro corregido, asistente de primera vez y aviso de actualización.
