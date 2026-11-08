@@ -1,6 +1,6 @@
 # Grand Vitara Launcher
 
-**Un proyecto de Luiz Labs** para la comunidad Grand Vitara.
+**Un proyecto de Labs Project** para la comunidad Grand Vitara.
 
 Pantalla de inicio moderna y liviana para las radios Android chinas instaladas en la **Suzuki Grand Vitara**
 (probado en radio de 9" con Allwinner T3, 1 GB de RAM, firmware K2001N).
@@ -68,5 +68,4 @@ No hace falta Android Studio: cada `git push` a `main` compila el APK en GitHub 
 Para compilar local: `cd launcher && ./gradlew assembleDebug` (requiere JDK 17 y el SDK de Android).
 
 ## Créditos
-Diseño, personalización y adaptación para la Grand Vitara: **Luiz Labs**.
-Parte de la base de código viene de [car-radio-launcher](https://github.com/EDUARDJ1001/car-radio-launcher) de EDUARDJ1001.
+Desarrollado por **Labs Project**.

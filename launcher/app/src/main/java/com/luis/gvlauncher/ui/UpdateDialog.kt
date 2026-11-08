@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -22,10 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,13 +34,23 @@ import com.luis.gvlauncher.data.UpdateInfo
 import com.luis.gvlauncher.data.Updates
 
 /**
- * Aviso de versión nueva: novedades + QR para bajarla con el celular.
- * "Cómo instalarla" muestra los pasos; "Más tarde" lo cierra por unos días.
+ * Aviso de versión nueva, como en una tienda de apps:
+ * "Actualizar ahora" descarga el APK en la radio y abre el instalador de Android.
+ * El QR queda para radios sin internet (se baja en el celular y se pasa por USB).
+ *
+ * [progress]: null = sin descargar, 0..1 = descargando, -1 = descargando sin tamaño conocido.
  */
 @Composable
-fun UpdateDialog(info: UpdateInfo, installed: String, onLater: () -> Unit) {
-    var showSteps by remember { mutableStateOf(false) }
+fun UpdateDialog(
+    info: UpdateInfo,
+    installed: String,
+    progress: Float?,
+    error: String?,
+    onUpdate: () -> Unit,
+    onLater: () -> Unit,
+) {
     val qr = remember(info.pageUrl) { runCatching { Updates.qr(info.pageUrl).asImageBitmap() }.getOrNull() }
+    val downloading = progress != null
     // Fondo oscuro que bloquea los toques del inicio
     Box(
         Modifier
@@ -76,42 +84,63 @@ fun UpdateDialog(info: UpdateInfo, installed: String, onLater: () -> Unit) {
                     Label("Hay una versión nueva", 60, weight = FontWeight.SemiBold)
                     Label("v${info.version} · tú tienes la v$installed", 38, color = Color(0xFFB4C4EA))
                     Spacer(Modifier.height(30.u))
-                    val lines = if (showSteps) listOf(
-                        "1. Escanea el QR y baja el APK",
-                        "2. Cópialo a un USB y conéctalo",
-                        "3. En la radio abre el Gestor de archivos",
-                        "4. Toca el APK → Instalar",
-                    ) else info.news.ifEmpty { listOf("Mejoras y arreglos") }
                     Column(verticalArrangement = Arrangement.spacedBy(14.u)) {
-                        lines.forEach { line ->
+                        info.news.ifEmpty { listOf("Mejoras y arreglos") }.forEach { line ->
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                if (!showSteps) {
-                                    Box(Modifier.size(16.u).clip(CircleShape).background(Color(0xFF3D8BFF)))
-                                    Spacer(Modifier.width(18.u))
-                                }
+                                Box(Modifier.size(16.u).clip(CircleShape).background(Color(0xFF3D8BFF)))
+                                Spacer(Modifier.width(18.u))
                                 Label(line, 32)
                             }
                         }
                     }
                     Spacer(Modifier.weight(1f))
-                    Row(horizontalArrangement = Arrangement.spacedBy(26.u)) {
-                        DialogButton("Más tarde", accent = false, onClick = onLater)
-                        DialogButton(if (showSteps) "Ver novedades" else "Cómo instalarla", accent = true) {
-                            showSteps = !showSteps
+                    when {
+                        downloading -> {
+                            // Barra de descarga
+                            val p = progress ?: 0f
+                            Label(
+                                if (p < 0f) "Descargando…" else "Descargando… ${(p * 100).toInt()}%",
+                                32, color = Color(0xFFB4C4EA),
+                            )
+                            Spacer(Modifier.height(14.u))
+                            Box(
+                                Modifier.fillMaxWidth().height(18.u).clip(RoundedCornerShape(9.u))
+                                    .background(Color(0x26FFFFFF)),
+                            ) {
+                                Box(
+                                    Modifier.fillMaxWidth(if (p < 0f) 1f else p.coerceIn(0.02f, 1f)).fillMaxHeight()
+                                        .clip(RoundedCornerShape(9.u)).background(Color(0xFF3D8BFF)),
+                                )
+                            }
+                            Spacer(Modifier.height(20.u))
+                            Label("Al terminar, toca \"Instalar\" en la pantalla de Android.", 28, color = Color(0xFFB4C4EA))
+                        }
+                        else -> {
+                            if (error != null) {
+                                Label(error, 28, color = Color(0xFFFFB547))
+                                Spacer(Modifier.height(14.u))
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(26.u)) {
+                                DialogButton("Más tarde", accent = false, onClick = onLater)
+                                if (info.apkUrl != null) {
+                                    DialogButton(if (error != null) "Reintentar" else "Actualizar ahora", accent = true, onClick = onUpdate)
+                                }
+                            }
                         }
                     }
                 }
                 Spacer(Modifier.width(40.u))
                 Column(Modifier.width(400.u), horizontalAlignment = Alignment.CenterHorizontally) {
                     Box(
-                        Modifier.size(380.u).clip(RoundedCornerShape(26.u)).background(Color.White).padding(14.u),
+                        Modifier.size(340.u).clip(RoundedCornerShape(26.u)).background(Color.White).padding(14.u),
                         contentAlignment = Alignment.Center,
                     ) {
                         qr?.let { Image(it, "Código QR de la versión nueva", modifier = Modifier.fillMaxSize()) }
                     }
-                    Spacer(Modifier.height(22.u))
-                    Label("Escanéalo con tu celular", 30, color = Color(0xFFB4C4EA))
-                    Label("para bajar la versión nueva", 30, color = Color(0xFFB4C4EA))
+                    Spacer(Modifier.height(20.u))
+                    Label("¿La radio sin internet?", 28, color = Color(0xFFB4C4EA))
+                    Label("Escanéalo con tu celular,", 26, color = Color(0xFFB4C4EA))
+                    Label("baja el APK y pásalo por USB", 26, color = Color(0xFFB4C4EA))
                 }
             }
         }

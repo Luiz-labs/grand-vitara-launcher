@@ -74,6 +74,7 @@ import com.luis.gvlauncher.ui.SystemState
 import com.luis.gvlauncher.ui.musicSourceIcon
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
@@ -95,6 +96,14 @@ class MainActivity : ComponentActivity() {
     private var wizardOn by mutableStateOf(false)
     /** Versión nueva disponible en GitHub, si la hay. */
     private var update by mutableStateOf<com.luis.gvlauncher.data.UpdateInfo?>(null)
+    /** Descarga de la actualización: null = sin descargar, 0..1 = progreso, -1 = sin tamaño. */
+    private var updateProgress by mutableStateOf<Float?>(null)
+    private var updateError by mutableStateOf<String?>(null)
+    /** Texto del botón "Buscar actualizaciones" en Ajustes. */
+    private var updateStatus by mutableStateOf("Toca para revisar")
+    private val scope = kotlinx.coroutines.MainScope()
+    /** Pantalla de carga con el carrusel: una vez cada vez que arranca el launcher. */
+    private var splashOn by mutableStateOf(!splashShown)
 
     private var profile by mutableStateOf(CarProfile(Config.DRIVER_NAME, Config.DEFAULT_MODEL, Config.DEFAULT_PAINT))
     private var carImage by mutableStateOf<ImageBitmap?>(null)
@@ -257,6 +266,8 @@ class MainActivity : ComponentActivity() {
             openCustomize = { customizing = true },
             openCarSettings = { open(Config.CAR_SETTINGS, "Ajustes del auto") },
             openAndroidSettings = { Apps.openSettings(this) },
+            openWifiList = { if (!Apps.openWifiSettings(this)) notInstalled("Lista de WiFi") },
+            openBluetoothList = { if (!Apps.openBluetoothPairing(this, Config.PHONE)) notInstalled("Bluetooth") },
             setNavCard = { updateProfile(profile.copy(navCard = it)) },
             setMusicCard = { updateProfile(profile.copy(musicCard = it)) },
             setWallpaper = { updateProfile(profile.copy(wallpaper = it)) },
@@ -269,6 +280,7 @@ class MainActivity : ComponentActivity() {
             setSaverEffect = { updateProfile(profile.copy(saverEffect = it)) },
             previewSaver = { saverOn = true },
             openWizard = { wizardOn = true },
+            checkUpdates = { checkUpdatesNow() },
             setHomeMode = { updateProfile(profile.copy(homeMode = it)) },
             openHomeChooser = {
                 if (!startSafely(Intent(android.provider.Settings.ACTION_HOME_SETTINGS)) &&
@@ -327,7 +339,7 @@ class MainActivity : ComponentActivity() {
                 while (true) {
                     delay(5_000)
                     val mins = profile.saverMinutes
-                    if (mins > 0 && !saverOn && !customizing && !wizardOn && update == null &&
+                    if (mins > 0 && !saverOn && !splashOn && !customizing && !wizardOn && update == null &&
                         android.os.SystemClock.uptimeMillis() - lastTouch > mins * 60_000L
                     ) saverOn = true
                 }
@@ -422,6 +434,7 @@ class MainActivity : ComponentActivity() {
                                     Screen.SETTINGS -> SettingsScreen(
                                         sys, profile.theme, profile.musicApp, profile.navApp,
                                         version = installedVersion(),
+                                        updateStatus = updateStatus,
                                         actions = settingsActions,
                                         navCard = profile.navCard,
                                         musicCard = profile.musicCard,
@@ -438,10 +451,18 @@ class MainActivity : ComponentActivity() {
                     // Aviso de actualización (encima del inicio, debajo del protector)
                     update?.let { info ->
                         if (!wizardOn) {
-                            com.luis.gvlauncher.ui.UpdateDialog(info, installedVersion()) {
-                                com.luis.gvlauncher.data.Updates.snooze(applicationContext, info.version)
-                                update = null
-                            }
+                            com.luis.gvlauncher.ui.UpdateDialog(
+                                info = info,
+                                installed = installedVersion(),
+                                progress = updateProgress,
+                                error = updateError,
+                                onUpdate = { downloadAndInstall(info) },
+                                onLater = {
+                                    com.luis.gvlauncher.data.Updates.snooze(applicationContext, info.version)
+                                    update = null
+                                    updateError = null
+                                },
+                            )
                         }
                     }
                     // Protector de pantalla encima de todo
@@ -458,6 +479,14 @@ class MainActivity : ComponentActivity() {
                             },
                             onDismiss = { closeSaver() },
                         )
+                    }
+                    // Pantalla de carga (encima de todo, solo al arrancar)
+                    if (splashOn) {
+                        com.luis.gvlauncher.ui.SplashScreen(installedVersion()) {
+                            splashOn = false
+                            splashShown = true
+                            lastTouch = android.os.SystemClock.uptimeMillis()
+                        }
                     }
                 }
             }
@@ -567,6 +596,43 @@ class MainActivity : ComponentActivity() {
         store.save(p)
     }
 
+    /** Botón "Buscar actualizaciones": revisa GitHub en el momento. */
+    private fun checkUpdatesNow() {
+        if (updateStatus == "Revisando…") return
+        updateStatus = "Revisando…"
+        scope.launch {
+            when (val r = com.luis.gvlauncher.data.Updates.checkNow(applicationContext, installedVersion())) {
+                is com.luis.gvlauncher.data.UpdateCheck.Available -> {
+                    updateStatus = "Hay una versión nueva: v${r.info.version}"
+                    updateError = null
+                    update = r.info
+                }
+                com.luis.gvlauncher.data.UpdateCheck.UpToDate -> updateStatus = "Estás al día · v${installedVersion()}"
+                com.luis.gvlauncher.data.UpdateCheck.Offline -> updateStatus = "Sin internet: conecta el WiFi e intenta de nuevo"
+            }
+        }
+    }
+
+    /** "Actualizar ahora": descarga el APK de GitHub y abre el instalador de Android. */
+    private fun downloadAndInstall(info: com.luis.gvlauncher.data.UpdateInfo) {
+        val url = info.apkUrl ?: return
+        if (updateProgress != null) return
+        updateError = null
+        updateProgress = 0f
+        scope.launch {
+            val apk = runCatching {
+                com.luis.gvlauncher.data.Updates.download(applicationContext, url) { p -> updateProgress = p }
+            }.getOrNull()
+            updateProgress = null
+            when {
+                apk == null -> updateError = "No se pudo descargar. Revisa el internet y vuelve a intentar."
+                !com.luis.gvlauncher.data.Updates.install(this@MainActivity, apk) ->
+                    updateError = "No se pudo abrir el instalador. Usa el QR e instala por USB."
+                else -> update = null // el instalador de Android toma el control
+            }
+        }
+    }
+
     private fun installedVersion(): String = runCatching {
         packageManager.getPackageInfo(packageName, 0).versionName
     }.getOrNull() ?: "1.0"
@@ -620,5 +686,10 @@ class MainActivity : ComponentActivity() {
                 notInstalled(profile.navApp.label)
             }
         }
+    }
+
+    private companion object {
+        /** El carrusel se muestra una vez por arranque (no cada vez que vuelves al inicio). */
+        var splashShown = false
     }
 }

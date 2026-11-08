@@ -39,6 +39,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Wallpaper
 import androidx.compose.material.icons.rounded.Wifi
+import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -75,6 +77,9 @@ class SettingsActions(
     val toggleMute: () -> Unit,
     val setWifi: (Boolean) -> Unit,
     val setBluetooth: (Boolean) -> Unit,
+    /** Tocar la tarjeta (no el interruptor): lista de redes / emparejar dispositivos. */
+    val openWifiList: () -> Unit = {},
+    val openBluetoothList: () -> Unit = {},
     val setTheme: (ThemeMode) -> Unit,
     val setMusicApp: (MusicApp) -> Unit,
     val setNavApp: (NavApp) -> Unit,
@@ -96,6 +101,8 @@ class SettingsActions(
     val setHomeMode: (HomeMode) -> Unit = {},
     /** Vuelve a mostrar el asistente de la primera vez. */
     val openWizard: () -> Unit = {},
+    /** Revisa en GitHub si hay versión nueva. */
+    val checkUpdates: () -> Unit = {},
 )
 
 @Composable
@@ -106,6 +113,7 @@ fun SettingsScreen(
     navApp: NavApp,
     version: String,
     actions: SettingsActions,
+    updateStatus: String = "Toca para revisar",
     navCard: NavCardMode = NavCardMode.CASA_TRABAJO,
     musicCard: MusicCardMode = MusicCardMode.AUTO,
     wallpaper: Wallpaper = Wallpaper.AZUL,
@@ -140,10 +148,10 @@ fun SettingsScreen(
             }
             // WiFi, Bluetooth, tema
             Row(Modifier.fillMaxWidth().height(140.u), horizontalArrangement = Arrangement.spacedBy(20.u)) {
-                ToggleCard(Icons.Rounded.Wifi, "WiFi", sys.wifiName ?: if (sys.wifiOn) "Activado" else "Apagado",
-                    sys.wifiOn, actions.setWifi, Modifier.weight(1f))
-                ToggleCard(Icons.Rounded.Bluetooth, "Bluetooth", if (sys.bluetoothOn) "Activado" else "Apagado",
-                    sys.bluetoothOn, actions.setBluetooth, Modifier.weight(1f))
+                ToggleCard(Icons.Rounded.Wifi, "WiFi", sys.wifiName ?: if (sys.wifiOn) "Toca para ver redes" else "Apagado",
+                    sys.wifiOn, actions.setWifi, actions.openWifiList, Modifier.weight(1f))
+                ToggleCard(Icons.Rounded.Bluetooth, "Bluetooth", if (sys.bluetoothOn) "Toca para emparejar" else "Apagado",
+                    sys.bluetoothOn, actions.setBluetooth, actions.openBluetoothList, Modifier.weight(1f))
                 ChoiceCard(Icons.Rounded.DarkMode, "Tema", ThemeMode.entries, theme, { it.label }, actions.setTheme,
                     Modifier.weight(2f))
             }
@@ -205,7 +213,9 @@ fun SettingsScreen(
                         badgeColor = Palette.PhoneGreen, badgeIcon = Icons.Rounded.DirectionsCar, onClick = actions.openCarSettings) { Chevron() }
                     ListRow("Ajustes de Android", "Sistema, fecha y hora, idioma",
                         badgeColor = Color(0xFF5A6A8F), badgeIcon = Icons.Rounded.Settings, onClick = actions.openAndroidSettings) { Chevron() }
-                    ListRow("Acerca de", "Grand Vitara Launcher · Luiz Labs",
+                    ListRow("Buscar actualizaciones", updateStatus,
+                        badgeColor = Color(0xFF22C55E), badgeIcon = Icons.Rounded.SystemUpdate, onClick = actions.checkUpdates) { Chevron() }
+                    ListRow("Acerca de", "Grand Vitara Launcher · Desarrollado por Labs Project",
                         badgeColor = Color(0xFFA06BFF), badgeIcon = Icons.Rounded.Info) {
                         Label("v$version", 21, color = LocalInk.current.secondary)
                     }
@@ -310,9 +320,11 @@ private fun ToggleCard(
     subtitle: String,
     on: Boolean,
     onChange: (Boolean) -> Unit,
+    /** Al tocar la tarjeta (fuera del interruptor) se abre la lista; el interruptor solo prende/apaga. */
+    onOpen: () -> Unit,
     modifier: Modifier,
 ) {
-    SurfaceCard(modifier.fillMaxHeight(), onClick = { onChange(!on) }) {
+    SurfaceCard(modifier.fillMaxHeight(), onClick = onOpen) {
         Column(Modifier.fillMaxSize().padding(horizontal = 26.u, vertical = 18.u)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(icon, null, tint = LocalInk.current.primary, modifier = Modifier.size(38.u))
@@ -327,8 +339,13 @@ private fun ToggleCard(
                 )
             }
             Spacer(Modifier.weight(1f))
-            Label(title, 26)
-            Label(subtitle, 18, color = LocalInk.current.secondary)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Label(title, 26)
+                    Label(subtitle, 18, color = LocalInk.current.secondary)
+                }
+                Icon(Icons.Rounded.ChevronRight, null, tint = LocalInk.current.secondary, modifier = Modifier.size(34.u))
+            }
         }
     }
 }

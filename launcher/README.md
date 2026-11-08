@@ -1,8 +1,8 @@
 # Grand Vitara Launcher
 
 Launcher propio para la radio Android china (Allwinner T3, firmware K2001N, 1 GB RAM, 9")
-de la Suzuki Grand Vitara 2009. Basado en [car-radio-launcher](https://github.com/EDUARDJ1001/car-radio-launcher),
-sin mapa offline (se usa Waze) para ahorrar RAM.
+de la Suzuki Grand Vitara 2009.
+Sin mapa offline (se usa Waze) para ahorrar RAM.
 
 ## Qué tiene
 - Saludo, hora, fecha y clima de Lima (toca el clima para cambiar de ciudad).

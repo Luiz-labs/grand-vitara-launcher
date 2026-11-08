@@ -12,8 +12,8 @@ android {
         applicationId = "com.luizlabs.gvlauncher"
         minSdk = 24
         targetSdk = 28 // head units: keep legacy behaviour (no background-start / storage restrictions)
-        versionCode = 6
-        versionName = "0.5.1"
+        versionCode = 7
+        versionName = "0.6"
     }
 
     // Firma de la versión final (release). La clave NO está en el repositorio:

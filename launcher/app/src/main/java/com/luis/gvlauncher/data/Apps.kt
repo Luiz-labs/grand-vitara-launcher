@@ -123,6 +123,28 @@ object Apps {
     fun openSettings(context: Context) =
         start(context, Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
 
+    /** Lista de redes WiFi. En radios que esconden Ajustes, se prueba la pantalla directa. */
+    fun openWifiSettings(context: Context): Boolean =
+        start(context, Intent(Settings.ACTION_WIFI_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) ||
+            start(
+                context,
+                Intent().setClassName("com.android.settings", "com.android.settings.Settings\$WifiSettingsActivity")
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            )
+
+    /**
+     * Emparejar Bluetooth. En estas radios el Bluetooth del teléfono lo maneja la app de fábrica
+     * (Teléfono / BT), así que se abre esa; si no existe, los ajustes de Bluetooth de Android.
+     */
+    fun openBluetoothPairing(context: Context, radioBtApp: com.luis.gvlauncher.Shortcut): Boolean =
+        launchShortcut(context, radioBtApp) ||
+            start(context, Intent(Settings.ACTION_BLUETOOTH_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) ||
+            start(
+                context,
+                Intent().setClassName("com.android.settings", "com.android.settings.Settings\$BluetoothSettingsActivity")
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            )
+
     fun notInstalled(context: Context, what: String) =
         Toast.makeText(context, "$what: app no encontrada en el radio", Toast.LENGTH_SHORT).show()
 
